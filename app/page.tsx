@@ -34,21 +34,14 @@ const QUICK_PROMPTS = [
   "Classic Neg recipe for portraits",
 ];
 
-function getOrCreateSessionId() {
-  if (typeof window === "undefined") return `xe5_${Date.now()}`;
-  const stored = localStorage.getItem("xe5_session_id");
-  if (stored) return stored;
-  const newId = `xe5_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  localStorage.setItem("xe5_session_id", newId);
-  return newId;
-}
+// Session managed client-side via useEffect
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [sessionId] = useState(() => getOrCreateSessionId());
+  const [sessionId, setSessionId] = useState<string>("");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [streaming, setStreaming] = useState("");
@@ -57,6 +50,18 @@ export default function Home() {
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [started, setStarted] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Runs only on the client after mount — safe to use localStorage here
+  useEffect(() => {
+    const stored = localStorage.getItem("xe5_session_id");
+    if (stored) {
+      setSessionId(stored);
+    } else {
+      const newId = `xe5_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      localStorage.setItem("xe5_session_id", newId);
+      setSessionId(newId);
+    }
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
