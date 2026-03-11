@@ -1,119 +1,120 @@
 import { NextRequest } from "next/server";
 import Groq from "groq-sdk";
+import { detectSubAgent } from "@/lib/agents";
+import { multiRoundSearch } from "@/lib/search";
+import { getSession, saveMessage, isSupabaseConfigured } from "@/lib/memory";
+import { trackTokens, estimateTokens } from "@/lib/analytics";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-const SYSTEM_PROMPT = `You are an expert Fujifilm X-E5 research agent. You have just searched the web and retrieved real, current information. Synthesize the search results into a clear, practical, well-structured answer specifically about the Fujifilm X-E5.
-
-Rules:
-- ONLY discuss the Fujifilm X-E5
-- Use exact settings values for film simulations (e.g. "Grain: Strong/Large", "Shadow Tone: +1")
-- Use emoji headers (##) and bullet points for settings
-- Cite sources by name when relevant (e.g. "According to Fuji X Weekly...")
-- Be enthusiastic and specific — you're talking to a fellow Fuji shooter
-- Format your response in clean markdown`;
-
-async function tavilySearch(query: string): Promise<{ results: { title: string; url: string; content: string }[] }> {
-  const res = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key: process.env.TAVILY_API_KEY,
-      query,
-      search_depth: "advanced",
-      max_results: 6,
-      include_answer: false,
-    }),
-  });
-  if (!res.ok) throw new Error(`Tavily error: ${res.statusText}`);
-  return res.json();
-}
-
-function buildSearchQueries(userQuery: string): string[] {
-  const base = userQuery.toLowerCase();
-  const queries: string[] = [`Fujifilm X-E5 ${userQuery}`];
-
-  if (base.includes("film") || base.includes("recipe") || base.includes("simulation")) {
-    queries.push("Fuji X-E5 film simulation recipe settings fuji x weekly");
-  } else if (base.includes("lens") || base.includes("accessory") || base.includes("gear")) {
-    queries.push("best XF lenses Fujifilm X-E5 accessories recommended");
-  } else if (base.includes("setting") || base.includes("config") || base.includes("menu")) {
-    queries.push("Fujifilm X-E5 camera settings configuration tips custom menu");
-  } else if (base.includes("place") || base.includes("location") || base.includes("where")) {
-    queries.push("photography locations Fujifilm XE5 street travel iconic spots");
-  } else {
-    queries.push(`Fujifilm X-E5 ${userQuery} review tips 2024 2025`);
-  }
-
-  return queries;
-}
-
 export async function POST(req: NextRequest) {
   try {
-    const { message, history } = await req.json();
-
-    // ── Step 1: Search ─────────────────────────────────────────────────────
-    const queries = buildSearchQueries(message);
-    const searchPromises = queries.map((q) => tavilySearch(q));
-    const searchResults = await Promise.allSettled(searchPromises);
-
-    const sources: { title: string; url: string; content: string }[] = [];
-    for (const result of searchResults) {
-      if (result.status === "fulfilled") {
-        sources.push(...(result.value.results || []));
-      }
-    }
-
-    // Deduplicate by URL
-    const seen = new Set<string>();
-    const uniqueSources = sources.filter((s) => {
-      if (seen.has(s.url)) return false;
-      seen.add(s.url);
-      return true;
-    });
-
-    // ── Step 2: Build context for Groq ─────────────────────────────────────
-    const searchContext = uniqueSources
-      .slice(0, 8)
-      .map((s, i) => `[${i + 1}] ${s.title}\nURL: ${s.url}\n${s.content}`)
-      .join("\n\n---\n\n");
-
-    const userMessageWithContext = `[SEARCH RESULTS]\n${searchContext}\n\n[USER QUESTION]\n${message}`;
-
-    // ── Step 3: Build message history ──────────────────────────────────────
-    const messages: Groq.Chat.ChatCompletionMessageParam[] = [
-      ...(history || []),
-      { role: "user", content: userMessageWithContext },
-    ];
-
-    // ── Step 4: Stream from Groq ────────────────────────────────────────────
+    const { message, sessionId } = await req.json();
     const encoder = new TextEncoder();
+
     const stream = new ReadableStream({
       async start(controller) {
-        // First, send the sources as metadata
-        const sourceMeta = uniqueSources.slice(0, 8).map((s) => ({ title: s.title, url: s.url }));
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "sources", sources: sourceMeta })}\n\n`));
+        const send = (data: object) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        };
 
-        // Then stream the LLM response
-    const groqStream = await groq.chat.completions.create({
-  model: "llama-3.3-70b-versatile",
-  messages: [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...messages,
-  ],
-  max_tokens: 1500,
-  temperature: 0.7,
-  stream: true,
-});
+        try {
+          // Step 1: Detect sub-agent
+          const agent = detectSubAgent(message);
+          send({ type: "agent", agentName: agent.name, agentIcon: agent.icon });
+          send({ type: "status", text: `${agent.icon} ${agent.name} activated...` });
 
-        for await (const chunk of groqStream) {
-          const text = chunk.choices[0]?.delta?.content || "";
-          if (text) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text", text })}\n\n`));
+          // Step 2: Load memory FIRST before searching
+          let memoryHistory: { role: "user" | "assistant"; content: string }[] = [];
+          if (sessionId && isSupabaseConfigured()) {
+            memoryHistory = await getSession(sessionId);
+            if (memoryHistory.length > 0) {
+              send({ type: "status", text: `Loaded ${Math.floor(memoryHistory.length / 2)} past exchanges from memory...` });
+            }
           }
+
+          // Step 3: Check if this is a memory-only question (no search needed)
+          const isMemoryQuestion = /what (was|were|did|have)|last (recipe|setting|answer|time)|remember|previous|earlier|before|we (discussed|talked)/i.test(message);
+
+          let searchContext = "";
+          let sourceMeta: { title: string; url: string }[] = [];
+
+          if (!isMemoryQuestion) {
+            // Step 4: Build search queries and search
+            send({ type: "status", text: "Planning search strategy..." });
+            const queries = agent.searchQueries(message);
+
+            const sources = await multiRoundSearch(
+              queries,
+              agent.priorityDomains,
+              (msg) => send({ type: "status", text: msg })
+            );
+
+            sourceMeta = sources.map((s) => ({ title: s.title, url: s.url }));
+            send({ type: "sources", sources: sourceMeta });
+            send({ type: "status", text: `Synthesizing from ${sources.length} sources...` });
+
+            searchContext = sources
+              .map((s, i) => `[Source ${i + 1}] ${s.title}\nURL: ${s.url}\n\n${s.content}`)
+              .join("\n\n---\n\n");
+          }
+
+          // Step 5: Build clean memory context
+          // Only use last 6 exchanges (12 messages) to avoid token bloat
+          const recentMemory = memoryHistory.slice(-12);
+
+          // Build a clean summary of past conversation for the system prompt
+          const memorySummary = recentMemory.length > 0
+            ? "\n\n[PREVIOUS CONVERSATION CONTEXT]\n" +
+              recentMemory.map(m =>
+                `${m.role === "user" ? "User asked" : "You answered"}: ${m.content.slice(0, 500)}${m.content.length > 500 ? "..." : ""}`
+              ).join("\n\n") +
+              "\n[END PREVIOUS CONTEXT]\n"
+            : "";
+
+          // Step 6: Build the user message
+          const userMessage = searchContext
+            ? `[LIVE SEARCH RESULTS - ${new Date().toLocaleDateString()}]\n\n${searchContext}\n\n---\n[USER QUESTION]\n${message}`
+            : message;
+
+          // Step 7: Build system prompt with memory injected
+          const systemWithMemory = agent.systemPrompt + memorySummary +
+            "\n\nIMPORTANT: If the user asks about previous answers or recipes, refer to the PREVIOUS CONVERSATION CONTEXT above. Always give complete, detailed answers.";
+
+          // Step 8: Stream Groq response — clean messages, no history contamination
+          const groqStream = await groq.chat.completions.create({
+            model: "llama3-8b-8192",
+            messages: [
+              { role: "system", content: systemWithMemory },
+              { role: "user", content: userMessage },
+            ],
+            max_tokens: 2000,
+            temperature: 0.7,
+            stream: true,
+          });
+
+          let fullResponse = "";
+          for await (const chunk of groqStream) {
+            const text = chunk.choices[0]?.delta?.content || "";
+            if (text) {
+              fullResponse += text;
+              send({ type: "text", text });
+            }
+          }
+
+          // Step 9: Save clean Q&A to memory + track token usage
+          if (sessionId && isSupabaseConfigured()) {
+            await saveMessage(sessionId, "user", message);
+            await saveMessage(sessionId, "assistant", fullResponse);
+            await trackTokens(sessionId, userMessage + systemWithMemory, fullResponse);
+          }
+
+          send({ type: "done" });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Unknown error";
+          send({ type: "error", text: msg });
         }
 
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
         controller.close();
       },
     });
