@@ -11,6 +11,7 @@ import TokenBar from "@/components/TokenBar";
 import RecipeCard from "@/components/RecipeCard";
 import { parseRecipeFromText, ParsedRecipe } from "@/lib/recipeParser";
 import { darkTheme, lightTheme, Theme } from "@/lib/theme";
+import AboutModal from "@/components/AboutModal";
 
 interface Source { title: string; url: string; }
 interface Message {
@@ -53,6 +54,7 @@ export default function Home() {
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [started, setStarted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -218,6 +220,7 @@ export default function Home() {
       <div style={{ position: "fixed", top: "-20%", left: "50%", transform: "translateX(-50%)", width: "700px", height: "500px", background: `radial-gradient(ellipse, ${t.gradientTop} 0%, transparent 70%)`, pointerEvents: "none", zIndex: 0 }} />
 
       <HistorySidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLoadSession={loadSession} currentSessionId={sessionId} isDark={isDark} />
+      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} isDark={isDark} />
 
       {/* Header */}
       <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${t.border}`, background: t.bgHeader, backdropFilter: "blur(16px)", padding: "0.75rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", transition: "background 0.3s, border-color 0.3s" }}>
@@ -238,6 +241,12 @@ export default function Home() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
           <TokenBar />
+          {/* About button */}
+          <button onClick={() => setAboutOpen(true)} style={headerBtn} title="About this app"
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
+            ?
+          </button>
           {/* Theme toggle */}
           <button onClick={toggleTheme} style={headerBtn} title={isDark ? "Switch to light mode" : "Switch to dark mode"}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
