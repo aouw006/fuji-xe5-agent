@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
 
           // Step 8: Stream Groq response — clean messages, no history contamination
           const groqStream = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
+            model: "llama3-8b-8192",
             messages: [
               { role: "system", content: systemWithMemory },
               { role: "user", content: userMessage },

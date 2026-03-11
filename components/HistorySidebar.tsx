@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import SavedRecipesPanel from "./SavedRecipesPanel";
+import RecipeGallery from "./RecipeGallery";
 
 interface HistorySession {
   session_id: string;
@@ -21,6 +22,7 @@ export default function HistorySidebar({ open, onClose, onLoadSession, currentSe
   const [loading, setLoading] = useState(false);
   const [loadingSession, setLoadingSession] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"history" | "recipes">("history");
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   useEffect(() => {
     if (open && activeTab === "history") fetchSessions();
@@ -88,7 +90,7 @@ export default function HistorySidebar({ open, onClose, onLoadSession, currentSe
         {/* Tabs */}
         <div style={{ display: "flex", borderBottom: "1px solid #1a1610" }}>
           {(["history", "recipes"] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
+            <button key={tab} onClick={() => { if (tab === "recipes") { setGalleryOpen(true); } else { setActiveTab(tab); } }}
               style={{ flex: 1, padding: "0.55rem", background: "transparent", border: "none", borderBottom: `2px solid ${activeTab === tab ? "#c8a96e" : "transparent"}`, color: activeTab === tab ? "#c8a96e" : "#4a3e2a", cursor: "pointer", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s" }}>
               {tab === "history" ? "💬 History" : "⭐ Recipes"}
             </button>
@@ -155,6 +157,11 @@ export default function HistorySidebar({ open, onClose, onLoadSession, currentSe
           </div>
         </div>
       </div>
+      <RecipeGallery
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        sessionId={currentSessionId}
+      />
     </>
   );
 }
