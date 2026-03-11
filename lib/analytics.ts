@@ -159,3 +159,35 @@ export async function getAllSavedRecipes(): Promise<SavedRecipe[]> {
     })) as SavedRecipe[];
   } catch { return []; }
 }
+
+// ─── Custom Agent Sources ─────────────────────────────────────────────────────
+
+export interface AgentSource {
+  id: string;
+  agent_id: string;
+  domain: string;
+  created_at: string;
+}
+
+export async function getAgentSources(): Promise<AgentSource[]> {
+  try {
+    const data = await supabaseFetch("/agent_sources?order=created_at.asc");
+    return Array.isArray(data) ? data : [];
+  } catch { return []; }
+}
+
+export async function addAgentSource(agentId: string, domain: string): Promise<AgentSource | null> {
+  try {
+    const data = await supabaseFetch("/agent_sources", {
+      method: "POST",
+      body: JSON.stringify({ agent_id: agentId, domain: domain.toLowerCase().trim() }),
+    });
+    return data?.[0] || null;
+  } catch { return null; }
+}
+
+export async function deleteAgentSource(id: string): Promise<void> {
+  try {
+    await supabaseFetch(`/agent_sources?id=eq.${id}`, { method: "DELETE" });
+  } catch {}
+}

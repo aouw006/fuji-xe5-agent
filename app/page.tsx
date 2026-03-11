@@ -12,6 +12,7 @@ import RecipeCard from "@/components/RecipeCard";
 import { parseRecipeFromText, ParsedRecipe } from "@/lib/recipeParser";
 import { darkTheme, lightTheme, Theme } from "@/lib/theme";
 import AboutModal from "@/components/AboutModal";
+import SettingsModal from "@/components/SettingsModal";
 
 interface Source { title: string; url: string; }
 interface Message {
@@ -55,6 +56,7 @@ export default function Home() {
   const [started, setStarted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -221,6 +223,7 @@ export default function Home() {
 
       <HistorySidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLoadSession={loadSession} currentSessionId={sessionId} isDark={isDark} />
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} isDark={isDark} />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} isDark={isDark} />
 
       {/* Header */}
       <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${t.border}`, background: t.bgHeader, backdropFilter: "blur(16px)", padding: "0.75rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", transition: "background 0.3s, border-color 0.3s" }}>
@@ -241,6 +244,12 @@ export default function Home() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
           <TokenBar />
+          {/* Settings button */}
+          <button onClick={() => setSettingsOpen(true)} style={headerBtn} title="Settings"
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
+            ⚙
+          </button>
           {/* About button */}
           <button onClick={() => setAboutOpen(true)} style={headerBtn} title="About this app"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}

@@ -3,7 +3,7 @@ import Groq from "groq-sdk";
 import { detectSubAgent } from "@/lib/agents";
 import { multiRoundSearch } from "@/lib/search";
 import { getSession, saveMessage, isSupabaseConfigured } from "@/lib/memory";
-import { trackTokens, estimateTokens } from "@/lib/analytics";
+import { trackTokens, estimateTokens, getAgentSources } from "@/lib/analytics";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -20,9 +20,20 @@ export async function POST(req: NextRequest) {
 
         try {
           // Step 1: Detect sub-agent
-          const agent = detectSubAgent(message);
+          let agent = detectSubAgent(message);
           send({ type: "agent", agentName: agent.name, agentIcon: agent.icon });
           send({ type: "status", text: `${agent.icon} ${agent.name} activated...` });
+
+          // Merge any custom sources the user has added for this agent
+          try {
+            const allCustomSources = await getAgentSources();
+            const customForAgent = allCustomSources
+              .filter(s => s.agent_id === agent.id)
+              .map(s => s.domain);
+            if (customForAgent.length > 0) {
+              agent = { ...agent, priorityDomains: [...customForAgent, ...agent.priorityDomains] };
+            }
+          } catch {}
 
           // Step 2: Load memory FIRST before searching
           let memoryHistory: { role: "user" | "assistant"; content: string }[] = [];
