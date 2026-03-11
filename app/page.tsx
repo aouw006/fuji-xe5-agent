@@ -2,8 +2,14 @@
 
 export const dynamic = "force-dynamic";
 
+const APP_VERSION = "v4.0";
+
 import { useState, useRef, useEffect, useCallback } from "react";
 import MessageRenderer from "@/components/MessageRenderer";
+import HistorySidebar from "@/components/HistorySidebar";
+import TokenBar from "@/components/TokenBar";
+import RecipeCard from "@/components/RecipeCard";
+import { parseRecipeFromText, ParsedRecipe } from "@/lib/recipeParser";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,6 +20,7 @@ interface Message {
   sources?: Source[];
   agentName?: string;
   agentIcon?: string;
+  recipe?: ParsedRecipe;
 }
 interface HistoryEntry { role: "user" | "assistant"; content: string; }
 
@@ -25,15 +32,16 @@ const CATEGORIES = [
   { label: "Iconic Locations", icon: "📍", query: "iconic photography locations perfect for shooting with Fujifilm X-E5" },
   { label: "Gear & Lenses", icon: "🎒", query: "best XF lenses and accessories for Fujifilm X-E5" },
   { label: "Community Tips", icon: "🌐", query: "Fujifilm X-E5 hidden tips tricks community recommendations reddit" },
+  { label: "What's New", icon: "✦", query: "Fujifilm X-E5 latest news firmware update new recipes accessories 2025" },
 ];
 
 const QUICK_PROMPTS = [
+  "✦ What's new for X-E5?",
   "Eterna Cinema recipe for street",
   "Silent shutter settings",
   "Best 23mm vs 35mm for X-E5",
   "Kyoto photo locations",
   "AF tracking settings for X-E5",
-  "Classic Neg recipe for portraits",
 ];
 
 // Session managed client-side via useEffect
@@ -51,6 +59,7 @@ export default function Home() {
   const [streamingAgent, setStreamingAgent] = useState<{ name: string; icon: string } | null>(null);
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [started, setStarted] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Runs only on the client after mount — safe to use localStorage here
@@ -118,12 +127,14 @@ export default function Home() {
               fullText += data.text;
               setStreaming(fullText);
             } else if (data.type === "done") {
+              const detectedRecipe = parseRecipeFromText(fullText);
               setMessages((prev) => [...prev, {
                 role: "assistant",
                 content: fullText,
                 sources,
                 agentName: agentInfo?.name,
                 agentIcon: agentInfo?.icon,
+                recipe: detectedRecipe || undefined,
               }]);
               setHistory((prev) => [
                 ...prev,
@@ -135,10 +146,11 @@ export default function Home() {
               setStreamingAgent(null);
               setStatusLog([]);
             } else if (data.type === "error") {
-              throw new Error(data.text);
+              setMessages((prev) => [...prev, { role: "assistant", content: `⚠️ ${data.text}`, sources: [] }]);
+              setLoading(false);
             }
           } catch (e) {
-            // Skip malformed SSE lines
+            // Skip malformed SSE lines — do not rethrow
           }
         }
       }
@@ -149,6 +161,20 @@ export default function Home() {
 
     setLoading(false);
   }, [loading, history, sessionId]);
+
+  const loadSession = (newSessionId: string, msgs: { role: string; content: string }[]) => {
+    // Restore a past conversation into the UI
+    const restored = msgs.map(m => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      sources: [],
+    }));
+    setMessages(restored);
+    setHistory(msgs.map(m => ({ role: m.role as "user" | "assistant", content: m.content })));
+    // Update localStorage session id
+    localStorage.setItem("xe5_session_id", newSessionId);
+    setStarted(restored.length > 0);
+  };
 
   const reset = () => {
     setMessages([]);
@@ -176,26 +202,45 @@ export default function Home() {
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")`, backgroundSize: "256px", opacity: 0.5 }} />
       <div style={{ position: "fixed", top: "-20%", left: "50%", transform: "translateX(-50%)", width: "700px", height: "500px", background: "radial-gradient(ellipse, rgba(200,169,110,0.04) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
 
+      {/* History Sidebar */}
+      <HistorySidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onLoadSession={loadSession}
+        currentSessionId={sessionId}
+      />
+
       {/* Header */}
-      <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid #1a1610", background: "rgba(12,10,7,0.95)", backdropFilter: "blur(16px)", padding: "0.85rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
-          <div style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1.5px solid #c8a96e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: "#c8a96e", letterSpacing: "0.05em", background: "rgba(200,169,110,0.06)", fontFamily: "'DM Mono', monospace" }}>XE5</div>
+      <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: "1px solid #1a1610", background: "rgba(12,10,7,0.95)", backdropFilter: "blur(16px)", padding: "0.75rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          {/* History button */}
+          <button onClick={() => setSidebarOpen(true)}
+            style={{ background: "transparent", border: "1px solid #1a1610", color: "#4a3e2a", width: "30px", height: "30px", borderRadius: "2px", cursor: "pointer", fontSize: "0.85rem", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0 }}
+            title="History"
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#c8a96e"; e.currentTarget.style.color = "#c8a96e"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#1a1610"; e.currentTarget.style.color = "#4a3e2a"; }}>
+            ☰
+          </button>
+          <div style={{ width: "30px", height: "30px", borderRadius: "50%", border: "1.5px solid #c8a96e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: "#c8a96e", letterSpacing: "0.05em", background: "rgba(200,169,110,0.06)", fontFamily: "'DM Mono', monospace", flexShrink: 0 }}>XE5</div>
           <div>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.95rem", fontWeight: 700, letterSpacing: "0.04em" }}>X-E5 Research Agent</div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.9rem", fontWeight: 700, letterSpacing: "0.04em" }}>X-E5 Research Agent</div>
             <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
               <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#4caf7d", animation: "blink 2s ease-in-out infinite" }} />
-              <span style={{ fontSize: "0.58rem", color: "#4a3e2a", letterSpacing: "0.15em", textTransform: "uppercase" }}>5 specialist agents · Groq · Tavily</span>
+              <span style={{ fontSize: "0.55rem", color: "#4a3e2a", letterSpacing: "0.12em", textTransform: "uppercase" }}>5 agents · Groq · Tavily · {APP_VERSION}</span>
             </div>
           </div>
         </div>
-        {started && (
-          <button onClick={reset}
-            style={{ background: "transparent", border: "1px solid #1e1a12", color: "#4a3e2a", padding: "0.3rem 0.8rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.62rem", letterSpacing: "0.12em", textTransform: "uppercase", transition: "all 0.2s" }}
-            onMouseEnter={(e) => { const t = e.currentTarget; t.style.borderColor = "#c8a96e"; t.style.color = "#c8a96e"; }}
-            onMouseLeave={(e) => { const t = e.currentTarget; t.style.borderColor = "#1e1a12"; t.style.color = "#4a3e2a"; }}>
-            ↺ New
-          </button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <TokenBar />
+          {started && (
+            <button onClick={reset}
+              style={{ background: "transparent", border: "1px solid #1e1a12", color: "#4a3e2a", padding: "0.3rem 0.7rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", transition: "all 0.2s", whiteSpace: "nowrap" }}
+              onMouseEnter={(e) => { const t = e.currentTarget; t.style.borderColor = "#c8a96e"; t.style.color = "#c8a96e"; }}
+              onMouseLeave={(e) => { const t = e.currentTarget; t.style.borderColor = "#1e1a12"; t.style.color = "#4a3e2a"; }}>
+              ↺ New
+            </button>
+          )}
+        </div>
       </header>
 
       <main style={{ flex: 1, maxWidth: "860px", width: "100%", margin: "0 auto", padding: "0 1.25rem", display: "flex", flexDirection: "column", position: "relative", zIndex: 1 }}>
@@ -203,7 +248,7 @@ export default function Home() {
         {/* Welcome */}
         {!started && (
           <div style={{ padding: "2.5rem 0 2rem", textAlign: "center", animation: "fadeIn 0.5s ease" }}>
-            <div style={{ fontSize: "0.62rem", letterSpacing: "0.3em", color: "#3a3020", textTransform: "uppercase", marginBottom: "0.75rem" }}>5 Specialist Agents · Multi-round Search · Full Article Reading</div>
+            <div style={{ fontSize: "0.62rem", letterSpacing: "0.3em", color: "#3a3020", textTransform: "uppercase", marginBottom: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem" }}><span>5 Specialist Agents · Multi-round Search · Full Article Reading</span><span style={{ border: "1px solid #2a2318", borderRadius: "2px", padding: "0.1rem 0.4rem", color: "#4a3e2a", fontSize: "0.55rem", letterSpacing: "0.1em" }}>{APP_VERSION}</span></div>
             <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(2rem, 5vw, 3.5rem)", fontWeight: 900, lineHeight: 1.05, color: "#e8d5b0", margin: "0 0 0.75rem" }}>
               Fujifilm X-E5<br /><span style={{ color: "#c8a96e", fontStyle: "italic" }}>Research Agent</span>
             </h1>

@@ -3,6 +3,7 @@ import Groq from "groq-sdk";
 import { detectSubAgent } from "@/lib/agents";
 import { multiRoundSearch } from "@/lib/search";
 import { getSession, saveMessage, isSupabaseConfigured } from "@/lib/memory";
+import { trackTokens, estimateTokens } from "@/lib/analytics";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
 
           // Step 8: Stream Groq response — clean messages, no history contamination
           const groqStream = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
+            model: "llama3-8b-8192",
             messages: [
               { role: "system", content: systemWithMemory },
               { role: "user", content: userMessage },
@@ -101,10 +102,11 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // Step 9: Save clean Q&A to memory (no search context bloat)
+          // Step 9: Save clean Q&A to memory + track token usage
           if (sessionId && isSupabaseConfigured()) {
             await saveMessage(sessionId, "user", message);
             await saveMessage(sessionId, "assistant", fullResponse);
+            await trackTokens(sessionId, userMessage + systemWithMemory, fullResponse);
           }
 
           send({ type: "done" });
