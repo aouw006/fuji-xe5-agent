@@ -95,14 +95,16 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "sources", sources: sourceMeta })}\n\n`));
 
         // Then stream the LLM response
-        const groqStream = await groq.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
-          messages,
-          system: SYSTEM_PROMPT,
-          max_tokens: 1500,
-          temperature: 0.7,
-          stream: true,
-        });
+    const groqStream = await groq.chat.completions.create({
+  model: "llama-3.3-70b-versatile",
+  messages: [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...messages,
+  ],
+  max_tokens: 1500,
+  temperature: 0.7,
+  stream: true,
+});
 
         for await (const chunk of groqStream) {
           const text = chunk.choices[0]?.delta?.content || "";
