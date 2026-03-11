@@ -98,10 +98,12 @@ export default function HistorySidebar({ open, onClose, onLoadSession, currentSe
         {/* Content */}
         <div style={{ flex: 1, overflowY: "auto" }}>
 
+          {/* Recipes tab */}
           {activeTab === "recipes" && (
             <SavedRecipesPanel open={true} sessionId={currentSessionId} />
           )}
 
+          {/* History tab */}
           {activeTab === "history" && (
             <div style={{ padding: "1rem 0" }}>
               {loading && (
