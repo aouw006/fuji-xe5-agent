@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { darkTheme, lightTheme } from "@/lib/theme";
 
 export interface RecipeData {
   id?: string;
@@ -22,6 +23,14 @@ interface Props {
 
 export default function RecipeCard({ recipe, sessionId, onSaved, onDeleted, alreadySaved = false, savedId }: Props) {
   const [copied, setCopied] = useState(false);
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("xe5_theme");
+    setIsDark(saved !== "light");
+  }, []);
+
+  const t = isDark ? darkTheme : lightTheme;
   const [starred, setStarred] = useState(alreadySaved);
   const [saving, setSaving] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
@@ -134,15 +143,15 @@ export default function RecipeCard({ recipe, sessionId, onSaved, onDeleted, alre
   const otherSettings = recipe.settings.filter(s => !/film simulation/i.test(s.label));
 
   return (
-    <div style={{ marginTop: "1rem", background: "rgba(200,169,110,0.03)", border: "1px solid rgba(200,169,110,0.15)", borderRadius: "6px", overflow: "hidden" }}>
+    <div style={{ marginTop: "1rem", background: t.bgCard, border: `1px solid ${isDark ? "rgba(200,169,110,0.15)" : "rgba(176,136,64,0.2)"}`, borderRadius: "6px", overflow: "hidden" }}>
       {/* Card header */}
-      <div style={{ padding: "1rem 1.25rem 0.9rem", borderBottom: "1px solid rgba(200,169,110,0.1)", background: "linear-gradient(135deg, rgba(200,169,110,0.06) 0%, transparent 100%)", position: "relative" }}>
+      <div style={{ padding: "1rem 1.25rem 0.9rem", borderBottom: "1px solid rgba(200,169,110,0.1)", background: t.bgCategoryCard, position: "relative" }}>
         <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: "3px", background: "repeating-linear-gradient(180deg, #c8a96e 0px, #c8a96e 6px, transparent 6px, transparent 12px)", opacity: 0.25 }} />
-        <div style={{ fontSize: "0.52rem", letterSpacing: "0.18em", color: "#4a3e2a", textTransform: "uppercase", marginBottom: "0.3rem" }}>🎞️ Film Simulation Recipe · X-E5</div>
-        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.3rem", fontWeight: 900, color: "#e8d5b0", letterSpacing: "-0.01em", marginBottom: "0.2rem" }}>{recipe.name}</div>
-        <div style={{ fontSize: "0.62rem", color: "#6b5d45" }}>by {recipe.author}</div>
+        <div style={{ fontSize: "0.52rem", letterSpacing: "0.18em", color: t.textFaint, textTransform: "uppercase", marginBottom: "0.3rem" }}>🎞️ Film Simulation Recipe · X-E5</div>
+        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.3rem", fontWeight: 900, color: t.text, letterSpacing: "-0.01em", marginBottom: "0.2rem" }}>{recipe.name}</div>
+        <div style={{ fontSize: "0.62rem", color: t.textMuted }}>by {recipe.author}</div>
         {recipe.mood && (
-          <div style={{ marginTop: "0.6rem", fontSize: "0.72rem", color: "#a89070", fontStyle: "italic", lineHeight: 1.6, borderLeft: "2px solid #2a2318", paddingLeft: "0.65rem" }}>
+          <div style={{ marginTop: "0.6rem", fontSize: "0.72rem", color: t.textMuted, fontStyle: "italic", lineHeight: 1.6, borderLeft: "2px solid #2a2318", paddingLeft: "0.65rem" }}>
             "{recipe.mood}"
           </div>
         )}
@@ -151,22 +160,22 @@ export default function RecipeCard({ recipe, sessionId, onSaved, onDeleted, alre
       {/* Settings */}
       <div style={{ padding: "0.9rem 1.25rem" }}>
         {filmSim && (
-          <div style={{ marginBottom: "0.5rem", padding: "0.5rem 0.7rem", background: "rgba(200,169,110,0.08)", border: "1px solid rgba(200,169,110,0.2)", borderRadius: "3px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ marginBottom: "0.5rem", padding: "0.5rem 0.7rem", background: t.bgCardUser, border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)"}`, borderRadius: "3px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "0.58rem", color: "#6b5d45", textTransform: "uppercase", letterSpacing: "0.1em" }}>Film Simulation</span>
-            <span style={{ fontSize: "0.85rem", color: "#c8a96e", fontWeight: 600, fontFamily: "'DM Mono', monospace" }}>{filmSim.value}</span>
+            <span style={{ fontSize: "0.85rem", color: t.gold, fontWeight: 600, fontFamily: "'DM Mono', monospace" }}>{filmSim.value}</span>
           </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.35rem" }}>
           {otherSettings.map((s, i) => (
-            <div key={i} style={{ padding: "0.4rem 0.6rem", background: "rgba(255,255,255,0.015)", border: "1px solid #181410", borderRadius: "3px" }}>
-              <div style={{ fontSize: "0.5rem", color: "#3a3020", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.12rem" }}>{s.label}</div>
-              <div style={{ fontSize: "0.75rem", color: "#c8b89a", fontFamily: "'DM Mono', monospace" }}>{s.value}</div>
+            <div key={i} style={{ padding: "0.4rem 0.6rem", background: t.bgInput, border: `1px solid ${t.borderCard}`, borderRadius: "3px" }}>
+              <div style={{ fontSize: "0.5rem", color: t.textVeryFaint, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.12rem" }}>{s.label}</div>
+              <div style={{ fontSize: "0.75rem", color: t.text, fontFamily: "'DM Mono', monospace" }}>{s.value}</div>
             </div>
           ))}
         </div>
 
         {recipe.bestFor && (
-          <div style={{ marginTop: "0.5rem", padding: "0.5rem 0.7rem", background: "rgba(200,169,110,0.03)", border: "1px solid #181410", borderRadius: "3px", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div style={{ marginTop: "0.5rem", padding: "0.5rem 0.7rem", background: t.bgButton, border: "1px solid #181410", borderRadius: "3px", display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <span style={{ fontSize: "0.8rem" }}>📍</span>
             <div>
               <div style={{ fontSize: "0.5rem", color: "#3a3020", letterSpacing: "0.1em", textTransform: "uppercase" }}>Best for</div>
@@ -177,13 +186,13 @@ export default function RecipeCard({ recipe, sessionId, onSaved, onDeleted, alre
       </div>
 
       {/* Actions */}
-      <div style={{ padding: "0.7rem 1.25rem", borderTop: "1px solid #181410", display: "flex", gap: "0.4rem" }}>
+      <div style={{ padding: "0.7rem 1.25rem", borderTop: `1px solid ${t.borderCard}`, display: "flex", gap: "0.4rem" }}>
         <button onClick={handleCopy}
-          style={{ flex: 1, padding: "0.45rem 0", background: copied ? "rgba(76,175,77,0.12)" : "rgba(200,169,110,0.08)", border: `1px solid ${copied ? "rgba(76,175,77,0.3)" : "rgba(200,169,110,0.15)"}`, borderRadius: "3px", color: copied ? "#4caf7d" : "#c8a96e", cursor: "pointer", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s", fontFamily: "'DM Sans', sans-serif" }}>
+          style={{ flex: 1, padding: "0.45rem 0", background: copied ? "rgba(76,175,77,0.12)" : t.bgCardUser, border: `1px solid ${copied ? "rgba(76,175,77,0.3)" : (isDark ? "rgba(200,169,110,0.15)" : "rgba(176,136,64,0.2)")}`, borderRadius: "3px", color: copied ? "#4caf7d" : "#c8a96e", cursor: "pointer", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s", fontFamily: "'DM Sans', sans-serif" }}>
           {copied ? "✓ Copied" : "📋 Copy"}
         </button>
         <button onClick={handleStar} disabled={saving}
-          style={{ width: "34px", height: "34px", background: starred ? "rgba(200,169,110,0.12)" : "transparent", border: `1px solid ${starred ? "rgba(200,169,110,0.3)" : "#181410"}`, borderRadius: "3px", cursor: "pointer", fontSize: "0.9rem", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+          style={{ width: "34px", height: "34px", background: starred ? t.bgCardUser : "transparent", border: `1px solid ${starred ? (isDark ? "rgba(200,169,110,0.3)" : "rgba(176,136,64,0.35)") : t.borderCard}`, borderRadius: "3px", cursor: "pointer", fontSize: "0.9rem", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
           title={starred ? "Remove from saved" : "Save recipe"}>
           {saving ? "…" : starred ? "⭐" : "☆"}
         </button>
