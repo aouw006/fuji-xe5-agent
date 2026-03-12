@@ -25,21 +25,20 @@ if (!SUPABASE_URL || !SUPABASE_KEY || !VOYAGE_KEY) {
 // ─── Curated sources ──────────────────────────────────────────────────────────
 // Add/remove URLs here. agent_id routes chunks to the right specialist agent.
 const SOURCES = [
-  // Film Recipes
-  { url: "https://fujixweekly.com/2024/03/28/fujifilm-x-e5-film-simulation-recipes/", agent_id: "film_recipes" },
+  // Film Recipes — FujiXWeekly
   { url: "https://fujixweekly.com/recipes/", agent_id: "film_recipes" },
+  { url: "https://fujixweekly.com/2025/07/07/kodak-vericolor-vps-fujifilm-x-e5-x-trans-v-film-simulation-recipe/", agent_id: "film_recipes" },
+  { url: "https://fujixweekly.com/2025/06/27/summer-sun-fujifilm-x-e5-x-trans-v-film-simulation-recipe/", agent_id: "film_recipes" },
+  { url: "https://fujixweekly.com/2025/10/28/vivid-velvia-fujifilm-x-e5-x-trans-v-film-simulation-recipe/", agent_id: "film_recipes" },
 
-  // Camera Settings
-  { url: "https://fujixweekly.com/2024/03/28/fujifilm-x-e5-settings-guide/", agent_id: "camera_settings" },
+  // Film Recipes — film.recipes
+  { url: "https://film.recipes/blog/user-photo-galleries-and-recipes/vintage-mood-user-images-gallery/", agent_id: "film_recipes" },
+  { url: "https://film.recipes/2025/11/21/nightwalker-street-film-recipe-for-night-lights/", agent_id: "film_recipes" },
+  { url: "https://film.recipes/film-recipe-themes/fujicolor-film-recipes/", agent_id: "film_recipes" },
+  { url: "https://film.recipes/film-recipe-themes/classic-chrome-film-recipes/", agent_id: "film_recipes" },
 
-  // Gear
-  { url: "https://www.mirrorlessons.com/fujifilm-x-e5-review/", agent_id: "gear" },
-
-  // Comparison
-  { url: "https://www.dpreview.com/reviews/fujifilm-x-e5-review", agent_id: "comparison" },
-
-  // Community / General
-  { url: "https://fujixweekly.com/2024/03/28/fujifilm-x-e5-review/", agent_id: "community" },
+  // General / Review
+  { url: "https://fujixweekly.com/2025/07/30/review-fujifilm-x-e5-pancakes-recipes/", agent_id: "community" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -48,7 +48,7 @@ export async function retrieveChunks(
   query: string,
   agentId?: string,
   matchCount = 5,
-  threshold = 0.45
+  threshold = 0.3
 ): Promise<RagChunk[]> {
   if (!VOYAGE_KEY) {
     // RAG not configured — fail silently, agent falls back to Tavily
@@ -79,6 +79,7 @@ export async function retrieveChunks(
     }
 
     const chunks: RagChunk[] = await res.json();
+    console.log(`[RAG] Retrieved ${chunks.length} chunks for query: "${query.slice(0, 60)}" (agent: ${agentId})`);
     return chunks;
   } catch (e) {
     // Never crash the agent due to RAG failure
