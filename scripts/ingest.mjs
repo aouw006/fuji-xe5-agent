@@ -23,33 +23,50 @@ if (!SUPABASE_URL || !SUPABASE_KEY || !VOYAGE_KEY) {
 }
 
 // ─── Sitemap sources ──────────────────────────────────────────────────────────
-// filter: URL must contain at least one of these strings (case-insensitive)
-// agent_id: which specialist agent these chunks belong to
 const SITEMAPS = [
   {
-    // Only X-E5 specific pages and film simulation recipes
+    // X-E5 pages, film recipes, lens reviews, settings guides
     url: "https://fujixweekly.com/sitemap.xml",
-    filter: ["x-e5", "x-trans-v-film-simulation-recipe", "film-simulation-recipe"],
+    filter: [
+      "x-e5",
+      "x-trans-v-film-simulation-recipe",
+      "film-simulation-recipe",
+      "/lens/", "xf-", "fujinon",
+      "settings", "autofocus", "ibis",
+    ],
     agent_id: "film_recipes",
     agent_id_overrides: {
       "settings": "camera_settings",
+      "autofocus": "camera_settings",
+      "ibis": "camera_settings",
       "review": "community",
       "lens": "gear",
+      "xf-": "gear",
+      "fujinon": "gear",
       "accessory": "gear",
     },
   },
   {
-    // Only recipe-specific pages on film.recipes
     url: "https://film.recipes/sitemap.xml",
-    filter: ["film-recipe", "film-recipes/", "nightwalker", "vintage-mood"],
+    filter: ["film-recipe", "film-recipes/"],
     agent_id: "film_recipes",
   },
 ];
 
-// Manual URLs to always include (fallback / supplements)
 const MANUAL_SOURCES = [
   { url: "https://fujixweekly.com/recipes/", agent_id: "film_recipes" },
   { url: "https://fujixweekly.com/2025/07/30/review-fujifilm-x-e5-pancakes-recipes/", agent_id: "community" },
+  { url: "https://fujixweekly.com/fujifilm-x-e5/", agent_id: "community" },
+  { url: "https://fujixweekly.com/fujifilm-x-mount-lens-guide/", agent_id: "gear" },
+  // Lenses
+  { url: "https://www.fujivsfuji.com/recommended-kits", agent_id: "gear" },
+  { url: "https://thecotswoldphotographer.com/best-fujifilm-portrait-lenses/", agent_id: "gear" },
+  { url: "https://amateurphotographer.com/buying-advice/best-fujifilm-x-mount-lenses-which-maker-has-the-best-range/", agent_id: "gear" },
+  { url: "https://au.pcmag.com/gallery/84718/the-best-fujifilm-x-lenses-for-2021", agent_id: "gear" },
+  // Accessories
+  { url: "https://notanomadblog.com/best-fujifilm-accessories/", agent_id: "gear" },
+  { url: "https://www.jmpeltier.com/best-xe5-accessories/", agent_id: "gear" },
+  { url: "https://www.flixelpix.net/5-essential-accessories-for-the-fujifilm-x-e5/", agent_id: "gear" },
 ];
 
 // ─── Sitemap parsing ──────────────────────────────────────────────────────────

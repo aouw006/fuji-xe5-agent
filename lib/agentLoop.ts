@@ -12,7 +12,7 @@ import type { AgentStep } from "@/lib/memory";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const TAVILY_KEY = process.env.TAVILY_API_KEY!;
-const MAX_STEPS = 6;
+const MAX_STEPS = 10;
 
 // ─── Tools ────────────────────────────────────────────────────────────────────
 
@@ -129,7 +129,14 @@ DECISION STRATEGY:
 5. Use fetch_url when you spot a promising URL in search results — it gives you full article content, not just snippets
 6. Answer when you have concrete specs, prices, or recommendations — don't keep searching if you have enough
 
-WHAT GOOD REASONING LOOKS LIKE:
+MINIMUM RESEARCH BEFORE ANSWERING:
+- At least one knowledge_base search
+- At least one web search
+- At least one fetch_url (pick the most relevant URL from any search result)
+- For comparisons: specs AND prices for EACH item being compared
+- Only call "answer" once you have all of the above
+
+
 - "The knowledge base returned weak results about X, so I'll search the web for current reviews"
 - "Search result [2] links to a full lens review — I'll fetch that for detailed specs"
 - "I now have specs for both lenses and AUD prices — I have enough to write a complete comparison"
