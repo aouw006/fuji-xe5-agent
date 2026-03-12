@@ -126,7 +126,7 @@ export default function Dashboard() {
   return (
     <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'DM Sans', sans-serif" }}>
       {/* Grain overlay */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`, backgroundSize: "256px", opacity: 0.4 }} />
+      <div className="grain-overlay" />
 
       {/* Header */}
       <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${BORDER}`, background: "rgba(13,11,8,0.92)", backdropFilter: "blur(16px)", padding: "0.7rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
