@@ -185,12 +185,7 @@ export default function Dashboard() {
 
             {/* ── Tabs ────────────────────────────────────────────────────── */}
             <div style={{ display: "flex", gap: "0.25rem", marginBottom: "1rem", borderBottom: `1px solid ${BORDER}`, paddingBottom: "0" }}>
-              {([
-                ["cost",    <><Icon name="cost" size={12} style={{ marginRight: "0.3rem" }} />Cost & Usage</>],
-                ["agents",  <><Icon name="agents" size={12} style={{ marginRight: "0.3rem" }} />Agents</>],
-                ["prompts", <><Icon name="inspect" size={12} style={{ marginRight: "0.3rem" }} />Prompts</>],
-                ["recipes", <><Icon name="film" size={12} style={{ marginRight: "0.3rem" }} />Recipes</>],
-              ].map(([tab, label]) => (
+              {(["cost", "agents", "prompts", "recipes"] as const).map((tab) => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
                   background: "transparent",
                   border: "none",
@@ -202,8 +197,12 @@ export default function Dashboard() {
                   letterSpacing: "0.06em",
                   transition: "all 0.2s",
                   marginBottom: "-1px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.3rem",
                 }}>
-                  {label}
+                  <Icon name={tab === "cost" ? "cost" : tab === "agents" ? "agents" : tab === "prompts" ? "inspect" : "film"} size={12} />
+                  {tab === "cost" ? "Cost" : tab === "agents" ? "Agents" : tab === "prompts" ? "Prompts" : "Recipes"}
                 </button>
               ))}
             </div>
