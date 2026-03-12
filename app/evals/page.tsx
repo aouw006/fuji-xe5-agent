@@ -1,19 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-
-const t = {
-  bg: "#0e0e0e",
-  bgCard: "#141414",
-  border: "rgba(255,255,255,0.07)",
-  borderCard: "rgba(255,255,255,0.05)",
-  text: "#e8e0d0",
-  textMuted: "#9a9080",
-  textFaint: "#5a5248",
-  textVeryFaint: "#3a3530",
-  gold: "#c8a96e",
-  goldDim: "rgba(200,169,110,0.12)",
-  goldBorder: "rgba(200,169,110,0.25)",
-};
+import { darkTheme, lightTheme } from "@/lib/theme";
 
 const AGENT_COLORS: Record<string, string> = {
   film_recipes: "#c8a96e",
@@ -64,10 +51,10 @@ interface EvalResult {
   error?: string;
 }
 
-function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 8 ? "#7ec87e" : score >= 6 ? t.gold : "#c87e7e";
-  const bg = score >= 8 ? "rgba(100,180,100,0.1)" : score >= 6 ? t.goldDim : "rgba(200,100,100,0.1)";
-  const border = score >= 8 ? "rgba(100,180,100,0.25)" : score >= 6 ? t.goldBorder : "rgba(200,100,100,0.25)";
+function ScoreBadge({ score, gold, goldDim, goldBorder }: { score: number; gold: string; goldDim: string; goldBorder: string }) {
+  const color = score >= 8 ? "#7ec87e" : score >= 6 ? gold : "#c87e7e";
+  const bg = score >= 8 ? "rgba(100,180,100,0.1)" : score >= 6 ? goldDim : "rgba(200,100,100,0.1)";
+  const border = score >= 8 ? "rgba(100,180,100,0.25)" : score >= 6 ? goldBorder : "rgba(200,100,100,0.25)";
   return (
     <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "0.12rem 0.45rem", borderRadius: "3px", background: bg, border: `1px solid ${border}`, color, fontFamily: "'DM Mono', monospace" }}>
       {score}/10
@@ -77,17 +64,16 @@ function ScoreBadge({ score }: { score: number }) {
 
 function ScoreDiff({ before, after }: { before: number; after: number }) {
   const diff = after - before;
-  if (diff === 0) return <span style={{ fontSize: "0.52rem", color: t.textFaint, fontFamily: "'DM Mono', monospace" }}>±0</span>;
-  const color = diff > 0 ? "#7ec87e" : "#c87e7e";
-  return <span style={{ fontSize: "0.52rem", color, fontFamily: "'DM Mono', monospace" }}>{diff > 0 ? "+" : ""}{diff}</span>;
+  if (diff === 0) return <span style={{ fontSize: "0.52rem", color: "#888", fontFamily: "'DM Mono', monospace" }}>±0</span>;
+  return <span style={{ fontSize: "0.52rem", color: diff > 0 ? "#7ec87e" : "#c87e7e", fontFamily: "'DM Mono', monospace" }}>{diff > 0 ? "+" : ""}{diff}</span>;
 }
 
-function CriteriaBar({ label, value }: { label: string; value: number }) {
-  const color = value === 3 ? "#7ec87e" : value === 2 ? t.gold : "#c87e7e";
+function CriteriaBar({ label, value, textFaint }: { label: string; value: number; textFaint: string }) {
+  const color = value === 3 ? "#7ec87e" : value === 2 ? "#c8a96e" : "#c87e7e";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-      <div style={{ fontSize: "0.52rem", color: t.textFaint, width: "62px", flexShrink: 0 }}>{label}</div>
-      <div style={{ flex: 1, height: "3px", background: "rgba(255,255,255,0.05)", borderRadius: "2px", overflow: "hidden" }}>
+      <div style={{ fontSize: "0.52rem", color: textFaint, width: "62px", flexShrink: 0 }}>{label}</div>
+      <div style={{ flex: 1, height: "3px", background: "rgba(128,128,128,0.15)", borderRadius: "2px", overflow: "hidden" }}>
         <div style={{ width: `${(value / 3) * 100}%`, height: "100%", background: color, transition: "width 0.5s ease" }} />
       </div>
       <div style={{ fontSize: "0.52rem", color, width: "20px", textAlign: "right", fontFamily: "'DM Mono', monospace" }}>{value}/3</div>
@@ -96,6 +82,10 @@ function CriteriaBar({ label, value }: { label: string; value: number }) {
 }
 
 export default function EvalsPage() {
+  const [isDark, setIsDark] = useState(true);
+  const t = isDark ? darkTheme : lightTheme;
+  const goldBorder = isDark ? "rgba(200,169,110,0.25)" : "rgba(176,136,64,0.3)";
+
   const [results, setResults] = useState<Record<string, EvalResult>>({});
   const [baseline, setBaseline] = useState<Record<string, number>>({});
   const [running, setRunning] = useState(false);
@@ -196,16 +186,16 @@ export default function EvalsPage() {
   const overallAvg = totalScored > 0 ? EVALS.filter(e => results[e.id]?.score !== undefined).reduce((s, e) => s + (results[e.id].score || 0), 0) / totalScored : null;
 
   return (
-    <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'DM Mono', monospace", padding: "2rem" }}>
+    <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'DM Mono', monospace", padding: "2rem", transition: "background 0.3s, color 0.3s" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@300;400;500&display=swap');
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: ${t.border}; border-radius: 2px; }
+        textarea { outline: none; }
+        textarea:focus { border-color: ${t.gold} !important; }
         @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
         @keyframes fadeIn { from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)} }
         @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
-        textarea { outline: none; }
-        textarea:focus { border-color: ${t.gold} !important; }
       `}</style>
 
       <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
@@ -220,34 +210,42 @@ export default function EvalsPage() {
               {overallAvg !== null && <span style={{ color: t.gold, marginLeft: "0.75rem" }}>overall {overallAvg.toFixed(1)}/10</span>}
             </div>
           </div>
-          <button onClick={runAll} disabled={running}
-            style={{ background: running ? "transparent" : t.goldDim, border: `1px solid ${running ? t.border : t.goldBorder}`, color: running ? t.textFaint : t.gold, padding: "0.6rem 1.4rem", borderRadius: "3px", cursor: running ? "not-allowed" : "pointer", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s" }}>
-            {running && !runningAgent
-              ? <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}><span style={{ width: "8px", height: "8px", border: `1px solid ${t.gold}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite", display: "inline-block" }} />Running…</span>
-              : "Run all evals"}
-          </button>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button onClick={() => setIsDark(d => !d)}
+              style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, width: "30px", height: "30px", borderRadius: "2px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", transition: "all 0.2s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}>
+              {isDark ? "☀" : "☾"}
+            </button>
+            <button onClick={runAll} disabled={running}
+              style={{ background: running ? "transparent" : t.goldDim, border: `1px solid ${running ? t.border : goldBorder}`, color: running ? t.textMuted : t.gold, padding: "0.6rem 1.4rem", borderRadius: "3px", cursor: running ? "not-allowed" : "pointer", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s" }}>
+              {running && !runningAgent
+                ? <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}><span style={{ width: "8px", height: "8px", border: `1px solid ${t.gold}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite", display: "inline-block" }} />Running…</span>
+                : "Run all evals"}
+            </button>
+          </div>
         </div>
 
         {/* Agent scorecards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem", marginBottom: "1.5rem" }}>
           {agentStats.map(stat => (
-            <div key={stat.agentId} style={{ background: t.bgCard, border: `1px solid ${editingAgent === stat.agentId ? t.goldBorder : t.borderCard}`, borderRadius: "4px", padding: "0.9rem 1rem", transition: "border-color 0.2s" }}>
+            <div key={stat.agentId} style={{ background: t.bgCard, border: `1px solid ${editingAgent === stat.agentId ? goldBorder : t.borderCard}`, borderRadius: "4px", padding: "0.9rem 1rem", transition: "background 0.3s, border-color 0.2s" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
                 <span style={{ fontSize: "0.58rem", color: AGENT_COLORS[stat.agentId], letterSpacing: "0.06em", textTransform: "uppercase" }}>{AGENT_LABELS[stat.agentId]}</span>
-                {stat.avg !== null && <ScoreBadge score={Math.round(stat.avg)} />}
+                {stat.avg !== null && <ScoreBadge score={Math.round(stat.avg)} gold={t.gold} goldDim={t.goldDim} goldBorder={goldBorder} />}
               </div>
               <div style={{ fontSize: "0.53rem", color: t.textFaint, marginBottom: "0.65rem" }}>
                 {stat.done}/{stat.total} run{stat.avg !== null && <span style={{ color: t.textMuted, marginLeft: "0.35rem" }}>· avg {stat.avg.toFixed(1)}</span>}
               </div>
               <div style={{ display: "flex", gap: "0.4rem" }}>
                 <button onClick={() => runAgent(stat.agentId)} disabled={running}
-                  style={{ flex: 1, background: "transparent", border: `1px solid ${t.border}`, color: running && runningAgent === stat.agentId ? t.gold : t.textFaint, padding: "0.28rem 0", borderRadius: "2px", cursor: running ? "not-allowed" : "pointer", fontSize: "0.53rem", letterSpacing: "0.06em", textTransform: "uppercase", transition: "all 0.2s" }}
+                  style={{ flex: 1, background: "transparent", border: `1px solid ${t.border}`, color: running && runningAgent === stat.agentId ? t.gold : t.textMuted, padding: "0.28rem 0", borderRadius: "2px", cursor: running ? "not-allowed" : "pointer", fontSize: "0.53rem", letterSpacing: "0.06em", textTransform: "uppercase", transition: "all 0.2s" }}
                   onMouseEnter={e => { if (!running) { e.currentTarget.style.borderColor = AGENT_COLORS[stat.agentId]; e.currentTarget.style.color = AGENT_COLORS[stat.agentId]; }}}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}>
                   {running && runningAgent === stat.agentId ? "Running…" : "Run"}
                 </button>
                 <button onClick={() => editingAgent === stat.agentId ? setEditingAgent(null) : openEditor(stat.agentId)}
-                  style={{ flex: 1, background: editingAgent === stat.agentId ? t.goldDim : "transparent", border: `1px solid ${editingAgent === stat.agentId ? t.goldBorder : t.border}`, color: editingAgent === stat.agentId ? t.gold : t.textFaint, padding: "0.28rem 0", borderRadius: "2px", cursor: "pointer", fontSize: "0.53rem", letterSpacing: "0.06em", textTransform: "uppercase", transition: "all 0.2s" }}>
+                  style={{ flex: 1, background: editingAgent === stat.agentId ? t.goldDim : "transparent", border: `1px solid ${editingAgent === stat.agentId ? goldBorder : t.border}`, color: editingAgent === stat.agentId ? t.gold : t.textMuted, padding: "0.28rem 0", borderRadius: "2px", cursor: "pointer", fontSize: "0.53rem", letterSpacing: "0.06em", textTransform: "uppercase", transition: "all 0.2s" }}>
                   {editingAgent === stat.agentId ? "Close" : "Edit prompt"}
                 </button>
               </div>
@@ -257,7 +255,7 @@ export default function EvalsPage() {
 
         {/* Prompt editor */}
         {editingAgent && (
-          <div style={{ background: t.bgCard, border: `1px solid ${t.goldBorder}`, borderRadius: "4px", padding: "1.25rem", marginBottom: "1.5rem", animation: "fadeIn 0.2s ease" }}>
+          <div style={{ background: t.bgCard, border: `1px solid ${goldBorder}`, borderRadius: "4px", padding: "1.25rem", marginBottom: "1.5rem", animation: "fadeIn 0.2s ease", transition: "background 0.3s" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
               <div>
                 <span style={{ fontSize: "0.55rem", color: AGENT_COLORS[editingAgent], letterSpacing: "0.1em", textTransform: "uppercase" }}>{AGENT_LABELS[editingAgent]}</span>
@@ -266,17 +264,17 @@ export default function EvalsPage() {
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 {saveMsg && <span style={{ fontSize: "0.58rem", color: saveMsg.includes("failed") ? "#c87e7e" : "#7ec87e" }}>{saveMsg}</span>}
                 <button onClick={() => setEditDraft(prompts[editingAgent] || "")}
-                  style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textFaint, padding: "0.28rem 0.7rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>Reset</button>
+                  style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.28rem 0.7rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", transition: "all 0.2s" }}>Reset</button>
                 <button onClick={() => savePrompt(editingAgent)} disabled={saving}
-                  style={{ background: saving ? "transparent" : t.goldDim, border: `1px solid ${t.goldBorder}`, color: saving ? t.textFaint : t.gold, padding: "0.28rem 0.85rem", borderRadius: "2px", cursor: saving ? "not-allowed" : "pointer", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  style={{ background: saving ? "transparent" : t.goldDim, border: `1px solid ${goldBorder}`, color: saving ? t.textMuted : t.gold, padding: "0.28rem 0.85rem", borderRadius: "2px", cursor: saving ? "not-allowed" : "pointer", fontSize: "0.55rem", letterSpacing: "0.08em", textTransform: "uppercase", transition: "all 0.2s" }}>
                   {saving ? "Saving…" : "Save"}
                 </button>
               </div>
             </div>
             <textarea value={editDraft} onChange={e => setEditDraft(e.target.value)} rows={16}
-              style={{ width: "100%", background: t.bg, border: `1px solid ${t.border}`, borderRadius: "3px", color: t.text, fontFamily: "'DM Mono', monospace", fontSize: "0.65rem", lineHeight: 1.75, padding: "0.75rem", resize: "vertical", transition: "border-color 0.2s" }} />
+              style={{ width: "100%", background: t.bg, border: `1px solid ${t.border}`, borderRadius: "3px", color: t.text, fontFamily: "'DM Mono', monospace", fontSize: "0.65rem", lineHeight: 1.75, padding: "0.75rem", resize: "vertical", transition: "background 0.3s, border-color 0.2s" }} />
             <div style={{ fontSize: "0.52rem", color: t.textVeryFaint, marginTop: "0.4rem" }}>
-              Prompt saved to Supabase — takes effect on next query, no redeploy needed. Re-run this agent after saving to see scores change.
+              Saved to Supabase — takes effect on next query, no redeploy needed. Re-run this agent after saving to see scores change.
             </div>
           </div>
         )}
@@ -291,7 +289,7 @@ export default function EvalsPage() {
             const currentScore = result?.score;
 
             return (
-              <div key={e.id} style={{ background: t.bgCard, border: `1px solid ${status === "running" ? t.goldBorder : t.borderCard}`, borderRadius: "4px", overflow: "hidden", transition: "border-color 0.2s" }}>
+              <div key={e.id} style={{ background: t.bgCard, border: `1px solid ${status === "running" ? goldBorder : t.borderCard}`, borderRadius: "4px", overflow: "hidden", transition: "border-color 0.2s, background 0.3s" }}>
                 <button onClick={() => result?.status === "done" ? setExpanded(isExpanded ? null : e.id) : undefined}
                   style={{ width: "100%", background: "transparent", border: "none", padding: "0.7rem 1rem", cursor: result?.status === "done" ? "pointer" : "default", textAlign: "left", display: "flex", alignItems: "center", gap: "0.65rem" }}>
 
@@ -310,7 +308,7 @@ export default function EvalsPage() {
                     {baseScore !== undefined && currentScore !== undefined && (
                       <span style={{ fontSize: "0.52rem", color: t.textFaint, fontFamily: "'DM Mono', monospace" }}>{baseScore} →</span>
                     )}
-                    {currentScore !== undefined && <ScoreBadge score={currentScore} />}
+                    {currentScore !== undefined && <ScoreBadge score={currentScore} gold={t.gold} goldDim={t.goldDim} goldBorder={goldBorder} />}
                     {baseScore !== undefined && currentScore !== undefined && <ScoreDiff before={baseScore} after={currentScore} />}
                     {status === "error" && <span style={{ fontSize: "0.53rem", color: "#c87e7e" }}>error</span>}
                     {status === "done" && <span style={{ fontSize: "0.5rem", color: t.textFaint }}>{isExpanded ? "▲" : "▼"}</span>}
@@ -320,27 +318,27 @@ export default function EvalsPage() {
                 {isExpanded && result && (
                   <div style={{ borderTop: `1px solid ${t.border}`, padding: "0.85rem 1rem", animation: "fadeIn 0.15s ease" }}>
                     {result.critique && (
-                      <div style={{ fontSize: "0.64rem", color: t.textMuted, lineHeight: 1.65, marginBottom: "0.75rem", fontStyle: "italic", borderLeft: `2px solid ${t.goldBorder}`, paddingLeft: "0.75rem" }}>
+                      <div style={{ fontSize: "0.64rem", color: t.textMuted, lineHeight: 1.65, marginBottom: "0.75rem", fontStyle: "italic", borderLeft: `2px solid ${goldBorder}`, paddingLeft: "0.75rem" }}>
                         {result.critique}
                       </div>
                     )}
                     {result.criteria && (
                       <div style={{ marginBottom: "0.75rem" }}>
-                        <CriteriaBar label="Answered" value={result.criteria.answered} />
-                        <CriteriaBar label="Specific" value={result.criteria.specific} />
-                        <CriteriaBar label="Prices" value={result.criteria.prices} />
-                        <CriteriaBar label="Expertise" value={result.criteria.expertise} />
+                        <CriteriaBar label="Answered" value={result.criteria.answered} textFaint={t.textFaint} />
+                        <CriteriaBar label="Specific" value={result.criteria.specific} textFaint={t.textFaint} />
+                        <CriteriaBar label="Prices" value={result.criteria.prices} textFaint={t.textFaint} />
+                        <CriteriaBar label="Expertise" value={result.criteria.expertise} textFaint={t.textFaint} />
                       </div>
                     )}
                     {result.answer && (
-                      <div style={{ fontSize: "0.61rem", color: t.textMuted, lineHeight: 1.7, maxHeight: "180px", overflowY: "auto", background: t.bg, border: `1px solid ${t.border}`, borderRadius: "3px", padding: "0.6rem 0.75rem", marginBottom: "0.6rem" }}>
+                      <div style={{ fontSize: "0.61rem", color: t.textMuted, lineHeight: 1.7, maxHeight: "180px", overflowY: "auto", background: t.bg, border: `1px solid ${t.border}`, borderRadius: "3px", padding: "0.6rem 0.75rem", marginBottom: "0.6rem", transition: "background 0.3s" }}>
                         {result.answer.slice(0, 800)}{result.answer.length > 800 ? "…" : ""}
                       </div>
                     )}
                     <button onClick={() => openEditor(e.agent)}
-                      style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textFaint, padding: "0.25rem 0.65rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.53rem", letterSpacing: "0.08em", textTransform: "uppercase", transition: "all 0.2s" }}
+                      style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.25rem 0.65rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.53rem", letterSpacing: "0.08em", textTransform: "uppercase", transition: "all 0.2s" }}
                       onMouseEnter={ev => { ev.currentTarget.style.borderColor = t.gold; ev.currentTarget.style.color = t.gold; }}
-                      onMouseLeave={ev => { ev.currentTarget.style.borderColor = t.border; ev.currentTarget.style.color = t.textFaint; }}>
+                      onMouseLeave={ev => { ev.currentTarget.style.borderColor = t.border; ev.currentTarget.style.color = t.textMuted; }}>
                       Edit {AGENT_LABELS[e.agent]} prompt →
                     </button>
                   </div>
