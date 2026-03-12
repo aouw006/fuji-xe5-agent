@@ -149,18 +149,9 @@ export async function runComparisonAgent(
       content:
         systemPrompt +
         memorySummary +
-        `\n\nYou are operating in AGENTIC MODE. You have access to tools to research thoroughly before answering.
+        `\n\nYou have three tools available: search_knowledge_base, search_web, and fetch_url.
 
-STRATEGY:
-- For comparisons: search for specs of EACH item separately, then search for prices, then synthesise
-- For recommendations: search knowledge base first, then web for current prices/availability
-- Use search_knowledge_base first — it has curated Fujifilm content
-- Use search_web for prices, recent reviews, availability (always include "AUD" for prices)
-- Use fetch_url when a search result looks highly relevant and you need full details
-- Stop when you have enough to give a complete, accurate answer
-- Do NOT repeat the same search twice
-
-Always call final_answer when ready — never just stop tool calling.`,
+Use them to research before answering. Call search_knowledge_base first, then search_web for current prices or specs. When you have enough information, stop calling tools and write your answer.`,
     },
     {
       role: "user",
@@ -192,12 +183,17 @@ Always call final_answer when ready — never just stop tool calling.`,
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("tool_use_failed") || msg.includes("400")) {
         toolFailures++;
+        console.log("[agentLoop] tool_use_failed on step", steps, "— switching to direct answer");
+        agentSteps.push({
+          step: agentSteps.length + 1,
+          tool: "direct_answer",
+          input: "(tool call failed, answering from training knowledge)",
+          result_summary: msg.slice(0, 200),
+        });
         send({ type: "status", text: "Switching to direct answer mode..." });
-        // Remove the last assistant message if it was a bad tool call
         if (messages[messages.length - 1]?.role === "assistant") {
           messages.pop();
         }
-        // Ask for a direct answer without tools
         messages.push({
           role: "user",
           content: "Based on what you know, write a complete, well-structured answer to the original question.",
