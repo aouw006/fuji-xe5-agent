@@ -51,7 +51,7 @@ async function searchKnowledgeBase(query: string, send: (d: object) => void): Pr
   try {
     const chunks = await retrieveChunks(query, undefined, 5, 0.3);
     if (chunks.length === 0) return "No relevant results found in knowledge base.";
-    return chunks.map((c, i) => `[${i + 1}] ${c.title}\n${c.content}\n(${c.url})`).join("\n\n---\n\n");
+    return chunks.map((c, i) => `[${i + 1}] ${decodeHtml(c.title)}\n${decodeHtml(c.content)}\n(${c.url})`).join("\n\n---\n\n");
   } catch (e) { return `Knowledge base search failed: ${e}`; }
 }
 
@@ -76,7 +76,25 @@ function parseDecision(raw: string): Decision | null {
   } catch { return null; }
 }
 
-// ─── Planner prompt ───────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function decodeHtml(str: string): string {
+  return str
+    .replace(/&#8217;/g, "'").replace(/&#8216;/g, "'").replace(/&#8220;/g, '"').replace(/&#8221;/g, '"')
+    .replace(/&#8211;/g, "–").replace(/&#8212;/g, "—").replace(/&#038;/g, "&").replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#\d+;/g, "");
+}
+
+function summarise(text: string, len = 200): string {
+  const clean = decodeHtml(text);
+  if (clean.length <= len) return clean;
+  // Try to cut at a sentence boundary
+  const cut = clean.slice(0, len);
+  const lastPeriod = cut.lastIndexOf(".");
+  return lastPeriod > len * 0.6 ? cut.slice(0, lastPeriod + 1) : cut + "…";
+}
+
+
 
 const PLANNER_SYSTEM = `You are a research agent for Fujifilm X-E5 photography. Gather information step by step before writing a final answer.
 
@@ -154,7 +172,7 @@ export async function runComparisonAgent(
       step: agentSteps.length + 1,
       tool: decision.action,
       input: toolInput,
-      result_summary: toolResult.slice(0, 200) + (toolResult.length > 200 ? "…" : ""),
+      result_summary: summarise(toolResult),
     });
 
     researchMessages.push({ role: "assistant", content: raw });
