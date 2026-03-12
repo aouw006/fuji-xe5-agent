@@ -87,10 +87,21 @@ function decodeHtml(str: string): string {
 
 function summarise(text: string, len = 220): string {
   const clean = decodeHtml(text);
-  // Skip the [1] Title\n prefix — show the actual content line
-  const lines = clean.split("\n").map(l => l.trim()).filter(l => l.length > 20 && !l.match(/^\[\d+\]/) && !l.startsWith("URL:") && !l.startsWith("(http"));
+  const lines = clean.split("\n")
+    .map(l => l.trim())
+    .filter(l =>
+      l.length > 30 &&
+      !l.match(/^\[\d+\]/) &&       // skip [1], [2] index markers
+      !l.startsWith("URL:") &&
+      !l.startsWith("(http") &&
+      !l.match(/^https?:\/\//) &&
+      !l.match(/camera with a .* lens/i) &&  // skip image alt text
+      !l.match(/^image:/i) &&
+      !l.match(/\.(jpg|jpeg|png|webp)/i)     // skip image filenames
+    );
   const body = lines.join(" ");
-  if (body.length <= len) return body || clean.slice(0, len);
+  if (!body) return clean.replace(/\s+/g, " ").slice(0, len) + "…";
+  if (body.length <= len) return body;
   const cut = body.slice(0, len);
   const lastPeriod = cut.lastIndexOf(".");
   return lastPeriod > len * 0.5 ? cut.slice(0, lastPeriod + 1) : cut + "…";
