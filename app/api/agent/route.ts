@@ -160,9 +160,13 @@ export async function POST(req: NextRequest) {
           }
 
           // Step 9: Save clean Q&A to memory + track token usage
+          const responseTimeMs = Date.now() - startTime;
+          const tokensEst = estimateTokens(userMessage + systemWithMemory + fullResponse);
+
+          // Send token count to client for session display
+          send({ type: "tokens", count: tokensEst });
+
           if (sessionId && isSupabaseConfigured()) {
-            const responseTimeMs = Date.now() - startTime;
-            const tokensEst = estimateTokens(userMessage + systemWithMemory + fullResponse);
             const meta: MessageMeta = {
               agent_id: agent.id,
               prompt_sent: systemWithMemory.slice(0, 4000),
@@ -182,15 +186,15 @@ export async function POST(req: NextRequest) {
               messages: [
                 {
                   role: "system",
-                  content: "You are a Fujifilm X-E5 expert assistant. Given the question and answer below, generate exactly 3 short follow-up questions the user might naturally want to ask next. Return ONLY a JSON array of 3 strings, no explanation, no markdown, no numbering. Example: [\"How does Velvia compare to Classic Chrome?\", \"What grain setting works best?\", \"Can I use this recipe for portraits?\"]"
+                  content: `You are a Fujifilm X-E5 photography assistant. Generate exactly 3 short follow-up questions a photographer would naturally ask next, based on the question and answer below. The questions should stay relevant to the ${agent.name} topic area. Return ONLY a JSON array of 3 strings — no explanation, no markdown, no numbering. Keep each question under 10 words. Example: ["How does Velvia compare to Classic Chrome?", "What grain setting works best?", "Can I use this recipe for portraits?"]`
                 },
                 {
                   role: "user",
-                  content: `Question: ${message}\n\nAnswer summary: ${fullResponse.slice(0, 600)}`
+                  content: `Question: ${message}\n\nAnswer summary: ${fullResponse.slice(0, 800)}`
                 }
               ],
               max_tokens: 200,
-              temperature: 0.8,
+              temperature: 0.7,
               stream: false,
             });
             const raw = followupStream.choices[0]?.message?.content || "[]";

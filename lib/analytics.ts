@@ -71,13 +71,14 @@ export interface HistorySession {
 
 export async function getAllSessions(): Promise<HistorySession[]> {
   try {
-    // Get all unique session_ids with their first user message
+    // Fetch the most recent user message per session by getting all user messages
+    // ordered desc with a high limit, then deduplicate keeping the MOST RECENT per session
     const data = await supabaseFetch(
-      `/conversations?role=eq.user&order=created_at.asc&select=session_id,content,created_at`
+      `/conversations?role=eq.user&order=created_at.desc&select=session_id,content,created_at&limit=2000`
     );
     if (!Array.isArray(data)) return [];
 
-    // Group by session_id, take first message as title
+    // Deduplicate by session_id — since we're desc, first occurrence = most recent message
     const seen = new Set<string>();
     const sessions: HistorySession[] = [];
 
@@ -95,8 +96,8 @@ export async function getAllSessions(): Promise<HistorySession[]> {
       }
     }
 
-    // Most recent first
-    return sessions.reverse();
+    // Already most-recent-first since we fetched desc
+    return sessions;
   } catch {
     return [];
   }

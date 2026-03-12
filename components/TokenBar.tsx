@@ -2,69 +2,56 @@
 
 import { useState, useEffect } from "react";
 
-interface MonthlyData {
-  tokensUsed: number;
-  costUsd: number;
-  budgetUsd: number;
-  pct: number;
+interface TokenBarProps {
+  sessionTokens?: number;
 }
 
-function getResetCountdown(): string {
-  const now = new Date();
-  const midnight = new Date();
-  midnight.setUTCHours(24, 0, 0, 0);
-  const diffMs = midnight.getTime() - now.getTime();
-  const hours = Math.floor(diffMs / (1000 * 60 * 60));
-  const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  return `${hours}h ${mins}m`;
+function formatTokens(n: number): string {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 }
 
-function getMonthName(): string {
-  return new Date().toLocaleString("en-AU", { month: "short" });
+function estimateCost(tokens: number): string {
+  // Llama 3.3 70B on Groq blended rate ~$0.69/M tokens
+  const cost = (tokens / 1000000) * 0.69;
+  if (cost < 0.001) return "<$0.001";
+  return `$${cost.toFixed(3)}`;
 }
 
-export default function TokenBar() {
-  const [data, setData] = useState<MonthlyData | null>(null);
-  const [resetIn, setResetIn] = useState(getResetCountdown());
+export default function TokenBar({ sessionTokens = 0 }: TokenBarProps) {
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    fetchUsage();
-    const dataInterval = setInterval(fetchUsage, 120000);
-    const countdownInterval = setInterval(() => setResetIn(getResetCountdown()), 60000);
-    return () => {
-      clearInterval(dataInterval);
-      clearInterval(countdownInterval);
-    };
-  }, []);
+    if (sessionTokens > 0) setVisible(true);
+  }, [sessionTokens]);
 
-  const fetchUsage = async () => {
-    try {
-      const res = await fetch("/api/history?type=monthly");
-      const d = await res.json();
-      setData(d);
-    } catch {}
-  };
-
-  if (!data) return null;
-
-  const isLow = data.pct > 70;
-  const isCritical = data.pct > 90;
-  const barColor = isCritical ? "#e05555" : isLow ? "#e0a855" : "#4caf7d";
-  const remaining = data.budgetUsd - data.costUsd;
+  if (!visible) return null;
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.2rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-          <span style={{ fontSize: "0.58rem", color: isCritical ? "#e05555" : "#6b5d45", letterSpacing: "0.06em", fontFamily: "'DM Mono', monospace" }}>
-            ${data.costUsd.toFixed(3)} / ${data.budgetUsd.toFixed(2)}
-          </span>
-          <div style={{ width: "52px", height: "3px", background: "#1a1610", borderRadius: "2px", overflow: "hidden" }}>
-            <div style={{ width: `${data.pct}%`, height: "100%", background: barColor, borderRadius: "2px", transition: "width 0.5s ease" }} />
-          </div>
+    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.15rem" }}>
+        <div style={{
+          fontSize: "0.58rem",
+          color: "#6b5d45",
+          letterSpacing: "0.06em",
+          fontFamily: "'DM Mono', monospace",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.35rem",
+        }}>
+          <span style={{ color: "#c8a96e" }}>{formatTokens(sessionTokens)}</span>
+          <span>tokens</span>
+          <span style={{ color: "#3a3530" }}>·</span>
+          <span>{estimateCost(sessionTokens)}</span>
         </div>
-        <div style={{ fontSize: "0.5rem", color: "#2e2818", letterSpacing: "0.07em", fontFamily: "'DM Mono', monospace" }}>
-          ${remaining.toFixed(3)} left · {getMonthName()} · resets {resetIn}
+        <div style={{
+          fontSize: "0.5rem",
+          color: "#2e2818",
+          letterSpacing: "0.07em",
+          fontFamily: "'DM Mono', monospace",
+        }}>
+          this session
         </div>
       </div>
     </div>

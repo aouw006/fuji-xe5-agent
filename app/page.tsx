@@ -136,19 +136,15 @@ export default function Home() {
     localStorage.setItem("xe5_fontsize", String(fontSize));
   }, [fontSize]);
   const [isDark, setIsDark] = useState(true);
+  const [sessionTokens, setSessionTokens] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const t: Theme = isDark ? darkTheme : lightTheme;
 
   useEffect(() => {
-    const stored = localStorage.getItem("xe5_session_id");
-    if (stored) {
-      setSessionId(stored);
-    } else {
-      const newId = `xe5_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      localStorage.setItem("xe5_session_id", newId);
-      setSessionId(newId);
-    }
+    // Always start with a fresh session_id — a new one is generated per conversation
+    const newId = `xe5_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    setSessionId(newId);
     const savedMode = localStorage.getItem("xe5_theme");
     if (savedMode === "light") setIsDark(false);
   }, []);
@@ -218,6 +214,8 @@ export default function Home() {
               setStreaming(fullText);
             } else if (data.type === "followups") {
               pendingFollowups = data.suggestions || [];
+            } else if (data.type === "tokens") {
+              setSessionTokens(prev => prev + (data.count || 0));
             } else if (data.type === "done") {
               const detectedRecipe = parseRecipeFromText(fullText);
               setMessages((prev) => [...prev, {
@@ -275,10 +273,9 @@ export default function Home() {
     setStreaming("");
     setStatusLog([]);
     setStreamingAgent(null);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("xe5_session_id");
-      window.location.reload();
-    }
+    // Generate a fresh session_id for the new conversation
+    const newId = `xe5_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    setSessionId(newId);
   };
 
   const headerBtn = {
@@ -332,7 +329,7 @@ export default function Home() {
         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexShrink: 0 }}>
           {/* Token bar — hidden on mobile, shown md+ */}
           <div className="hide-mobile">
-            <TokenBar />
+            <TokenBar sessionTokens={sessionTokens} />
           </div>
           <button onClick={toggleTheme} style={headerBtn} title={isDark ? "Switch to light mode" : "Switch to dark mode"}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
