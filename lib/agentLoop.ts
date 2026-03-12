@@ -160,14 +160,56 @@ export async function runComparisonAgent(
   const agentSteps: AgentStep[] = [];
   let researchSummary = "";
 
+  // Running knowledge ledger — builds up what the agent has found so far
+  const knowledgeLedger: { step: number; tool: string; input: string; keyFindings: string }[] = [];
+
+  async function updateLedger(step: number, tool: string, input: string, result: string) {
+    // Ask the model to extract key findings from this result in context of the question
+    try {
+      const res = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          {
+            role: "system",
+            content: `Extract the most important facts from this research result that are relevant to answering: "${message}". 
+Be specific — extract actual values, prices, specs, names. Max 3 sentences. If the result has nothing useful, say "No useful findings."`,
+          },
+          { role: "user", content: result.slice(0, 1500) },
+        ],
+        max_tokens: 150,
+        temperature: 0.1,
+      });
+      const findings = res.choices[0].message.content || "No useful findings.";
+      knowledgeLedger.push({ step, tool, input, keyFindings: findings });
+    } catch {
+      knowledgeLedger.push({ step, tool, input, keyFindings: summarise(result, 150) });
+    }
+  }
+
+  function buildLedgerContext(): string {
+    if (knowledgeLedger.length === 0) return "";
+    return `\n\n[RESEARCH SO FAR]\n` +
+      knowledgeLedger.map(l =>
+        `Step ${l.step} — ${l.tool} ("${l.input}"):\n${l.keyFindings}`
+      ).join("\n\n") +
+      `\n\n[GAPS] What is still missing to fully answer the question? Search for those gaps next.`;
+  }
+
   for (let step = 0; step < MAX_STEPS; step++) {
     send({ type: "status", text: `Research step ${step + 1}...` });
+
+    // Build the first message with the running ledger injected
+    const firstMsg = `Research this question: ${message}${buildLedgerContext()}`;
+    const messagesWithLedger = [
+      { role: "user" as const, content: firstMsg },
+      ...researchMessages.slice(1), // skip original first message, replaced above
+    ];
 
     let raw = "";
     try {
       const res = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
-        messages: [{ role: "system", content: PLANNER_SYSTEM }, ...researchMessages],
+        messages: [{ role: "system", content: PLANNER_SYSTEM }, ...messagesWithLedger],
         max_tokens: 400,
         temperature: 0.1,
       });
@@ -211,6 +253,15 @@ export async function runComparisonAgent(
       reasoning: decision.reasoning || "",
       result_summary: summarise(toolResult),
     });
+
+    // Update the knowledge ledger with key findings from this result
+    await updateLedger(agentSteps.length, decision.action, toolInput, toolResult);
+
+    // Update the last step's result_summary with the extracted key findings
+    const lastLedger = knowledgeLedger[knowledgeLedger.length - 1];
+    if (lastLedger && agentSteps.length > 0) {
+      agentSteps[agentSteps.length - 1].result_summary = lastLedger.keyFindings;
+    }
 
     researchMessages.push({ role: "assistant", content: raw });
 
