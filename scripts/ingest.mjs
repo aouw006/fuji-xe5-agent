@@ -144,6 +144,10 @@ async function fetchText(url) {
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/\s{2,}/g, " ")
+      // Strip non-UTF-8 / non-printable characters
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "")
+      // Normalise unicode to NFC form
+      .normalize("NFC")
       .trim();
 
     const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
@@ -241,10 +245,15 @@ async function ingestUrl(url, agentId, existingUrls, stats) {
   const chunks = chunkText(text);
   if (chunks.length === 0) { process.stdout.write("(no content)\n"); stats.failed++; return; }
 
+  // Sanitise chunks before embedding
+  const safeChunks = chunks.map(ch =>
+    ch.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "").normalize("NFC")
+  );
+
   // Embed in batches of 64
   const allEmbeddings = [];
   for (let i = 0; i < chunks.length; i += 64) {
-    const embeddings = await embedBatch(chunks.slice(i, i + 64));
+    const embeddings = await embedBatch(safeChunks.slice(i, i + 64));
     allEmbeddings.push(...embeddings);
   }
 

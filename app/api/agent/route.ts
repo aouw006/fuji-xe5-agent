@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
             // Save to memory
             if (sessionId && isSupabaseConfigured()) {
-              const meta: MessageMeta = { agentId: agent.id, tokensUsed: estimateTokens(message + fullResponse) };
+              const meta: MessageMeta = { agent_id: agent.id, tokensUsed: estimateTokens(message + fullResponse) };
               await saveMessage(sessionId, "user", message, meta);
               await saveMessage(sessionId, "assistant", fullResponse, meta);
               await trackTokens(sessionId, estimateTokens(message + fullResponse), agent.id);
