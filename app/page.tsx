@@ -364,14 +364,14 @@ export default function Home() {
         {!started && (
           <div style={{ padding: "2.5rem 0 2rem", textAlign: "center", animation: "fadeIn 0.5s ease" }}>
             <div style={{ fontSize: "0.62rem", letterSpacing: "0.3em", color: t.textVeryFaint, textTransform: "uppercase", marginBottom: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem" }}>
-              <span>5 Specialist Agents · Multi-round Search · Full Article Reading</span>
+              <span>6 Specialist Agents · Multi-round Search · Full Article Reading</span>
               <span style={{ border: `1px solid ${t.border}`, borderRadius: "2px", padding: "0.1rem 0.4rem", color: t.textFaint, fontSize: "0.55rem", letterSpacing: "0.1em" }}>{APP_VERSION}</span>
             </div>
             <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(2rem, 5vw, 3.5rem)", fontWeight: 900, lineHeight: 1.05, color: t.text, margin: "0 0 0.75rem" }}>
               Fujifilm X-E5<br /><span style={{ color: t.gold, fontStyle: "italic" }}>Research Agent</span>
             </h1>
             <p style={{ color: t.textMuted, maxWidth: "460px", margin: "0 auto 2rem", lineHeight: 1.8, fontSize: "0.875rem" }}>
-              Each question is routed to a specialist agent — film recipes, settings, locations, gear, or community. It searches multiple rounds, reads full articles, and streams expert answers.
+              Each question is routed to a specialist agent — film recipes, settings, locations, gear, comparisons, or community. It searches multiple rounds, reads full articles, and streams expert answers.
             </p>
 
             <ShotOfTheDay isDark={isDark} onPrompt={(p) => handleQuery(p)} />

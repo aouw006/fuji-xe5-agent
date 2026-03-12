@@ -39,6 +39,13 @@ const AGENTS = [
     sources: ["bhphotovideo.com", "mirrorlessons.com"],
   },
   {
+    icon: "⚖️",
+    name: "Comparison Agent",
+    triggers: "vs, versus, compare, which is better, should I get, recommend me, worth it",
+    description: "Handles head-to-head comparisons (35mm vs 23mm, Peak Design vs Gordy's) and personalised gear recommendations (what lens for street photography?). Gives structured verdict tables with scenario-based winners.",
+    sources: ["dpreview.com", "mirrorlessons.com", "kenrockwell.com"],
+  },
+  {
     icon: "🌐",
     name: "Community Agent",
     triggers: "everything else — tips, comparisons, general questions",
@@ -107,7 +114,7 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
               This app is an AI-powered research tool built specifically for the <strong style={{ color: t.text }}>Fujifilm X-E5</strong>. Ask any question and it automatically routes your query to the most relevant specialist agent. Each agent searches trusted photography sources, reads full articles, and streams a detailed answer — all in real time.
             </p>
             <div style={{ marginTop: "0.85rem", display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-              {["Groq (Llama 3.3 70B)", "Tavily Search", "Supabase Memory", "5 Specialist Agents"].map(tag => (
+              {["Groq (Llama 3.3 70B)", "Tavily Search", "Supabase Memory", "6 Specialist Agents"].map(tag => (
                 <span key={tag} style={{ fontSize: "0.58rem", color: t.gold, border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.3)"}`, borderRadius: "2px", padding: "0.15rem 0.5rem", letterSpacing: "0.08em", fontFamily: "'DM Mono', monospace" }}>
                   {tag}
                 </span>
@@ -142,7 +149,7 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
           {/* Agents */}
           <div style={{ marginBottom: "1rem" }}>
             <div style={{ fontSize: "0.6rem", color: t.textFaint, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
-              The 5 specialist agents
+              The 6 specialist agents
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {AGENTS.map(agent => (
