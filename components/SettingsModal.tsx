@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useState, useEffect } from "react";
 import TokenBar from "./TokenBar";
@@ -139,7 +140,7 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
             style={{ background: "transparent", border: `1px solid ${t.borderSidebar}`, color: t.textFaint, width: "30px", height: "30px", borderRadius: "2px", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; }}>
-            ✕
+            <Icon name="close" size={14} />
           </button>
         </div>
 
@@ -243,14 +244,14 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
               {!loading && customForActive.map(source => (
                 <div key={source.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 0.75rem", background: t.bgCard, border: `1px solid ${t.borderCard}`, borderRadius: "3px", marginBottom: "0.35rem" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontSize: "0.6rem", color: t.gold }}>★</span>
+                    <Icon name="starFilled" size={10} style={{ color: t.gold }} />
                     <span style={{ fontSize: "0.72rem", color: t.text, fontFamily: "'DM Mono', monospace" }}>{source.domain}</span>
                   </div>
                   <button onClick={() => handleDelete(source.id)}
                     style={{ background: "transparent", border: "none", color: t.textVeryFaint, cursor: "pointer", fontSize: "0.8rem", padding: "0.1rem 0.3rem", borderRadius: "2px", transition: "color 0.2s" }}
                     onMouseEnter={e => e.currentTarget.style.color = "#e05555"}
                     onMouseLeave={e => e.currentTarget.style.color = t.textVeryFaint}>
-                    ✕
+                    <Icon name="close" size={11} />
                   </button>
                 </div>
               ))}

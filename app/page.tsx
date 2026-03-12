@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Icon from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
 
@@ -314,7 +315,7 @@ export default function Home() {
           <button onClick={() => setSidebarOpen(true)} style={headerBtn} title="History"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
-            ☰
+            <Icon name="menu" size={14} />
           </button>
           <div style={{ width: "28px", height: "28px", borderRadius: "50%", border: `1.5px solid ${t.gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.48rem", color: t.gold, background: t.goldBg, fontFamily: "'DM Mono', monospace", flexShrink: 0 }}>XE5</div>
           {/* Title — hidden on very small screens */}
@@ -336,29 +337,29 @@ export default function Home() {
           <button onClick={toggleTheme} style={headerBtn} title={isDark ? "Switch to light mode" : "Switch to dark mode"}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
-            {isDark ? "☀" : "☾"}
+            <Icon name={isDark ? "sun" : "moon"} size={14} />
           </button>
           <button onClick={() => setAboutOpen(true)} style={headerBtn} title="About"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
-            ?
+            <Icon name="question" size={14} />
           </button>
           <Link href="/dashboard" style={{ ...headerBtn, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }} title="Dashboard"
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.gold; (e.currentTarget as HTMLElement).style.color = t.gold; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.border; (e.currentTarget as HTMLElement).style.color = t.textFaint; }}>
-            ◈
+            <Icon name="dashboard" size={13} />
           </Link>
           <button onClick={() => setSettingsOpen(true)} style={headerBtn} title="Settings"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
-            ⚙
+            <Icon name="settings" size={14} />
           </button>
           {started && (
             <button onClick={reset}
               style={{ background: "transparent", border: `1px solid ${t.borderMid}`, color: t.textFaint, padding: "0.3rem 0.55rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.58rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s", whiteSpace: "nowrap" }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textFaint; }}>
-              ↺
+              <Icon name="reset" size={13} />
             </button>
           )}
         </div>
@@ -466,7 +467,7 @@ export default function Home() {
                   <div style={{ marginBottom: "0.75rem" }}>
                     {statusLog.map((s, i) => (
                       <div key={i} style={{ fontSize: "0.68rem", color: i === statusLog.length - 1 ? t.textMuted : t.textVeryFaint, lineHeight: 1.6, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                        <span style={{ color: i === statusLog.length - 1 ? t.gold : t.textTiny }}>{i === statusLog.length - 1 ? "◎" : "✓"}</span>
+                        <span style={{ color: i === statusLog.length - 1 ? t.gold : t.textTiny }}><Icon name={i === statusLog.length - 1 ? "dotOutline" : "check"} size={10} /></span>
                         {s}
                       </div>
                     ))}
@@ -524,7 +525,7 @@ export default function Home() {
           />
           <button onClick={() => handleQuery(input)} disabled={loading || !input.trim()}
             style={{ background: loading || !input.trim() ? t.bgButton : t.gold, border: "none", borderRadius: "4px", color: loading || !input.trim() ? t.textFaint : (isDark ? "#0c0a07" : "#ffffff"), padding: "0.65rem 1rem", cursor: loading || !input.trim() ? "not-allowed" : "pointer", fontSize: "0.72rem", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-            {loading ? "…" : "Search ↑"}
+            {loading ? <Icon name="loader" size={14} /> : <Icon name="send" size={14} />}
           </button>
         </div>
       </main>

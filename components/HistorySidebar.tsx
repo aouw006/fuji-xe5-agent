@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useState, useEffect } from "react";
 import SavedRecipesPanel from "./SavedRecipesPanel";
@@ -87,7 +88,7 @@ export default function HistorySidebar({ open, onClose, onLoadSession, currentSe
             style={{ background: "transparent", border: `1px solid ${t.borderSidebar}`, color: t.textFaint, width: "28px", height: "28px", borderRadius: "2px", cursor: "pointer", fontSize: "0.9rem", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; }}>
-            ✕
+            <Icon name="close" size={14} />
           </button>
         </div>
 

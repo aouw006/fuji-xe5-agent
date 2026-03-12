@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useState, useEffect } from "react";
 import { darkTheme, lightTheme } from "@/lib/theme";
@@ -37,7 +38,7 @@ export default function RecipeCard({ recipe, sessionId, onSaved, onDeleted, alre
 
   const handleCopy = () => {
     const text = [
-      `🎞️ ${recipe.name} — Fujifilm X-E5 Recipe`,
+      `${recipe.name} — Fujifilm X-E5 Recipe`,
       `By: ${recipe.author}`,
       recipe.mood ? `Mood: ${recipe.mood}` : "",
       recipe.bestFor ? `Best for: ${recipe.bestFor}` : "",
@@ -147,7 +148,7 @@ export default function RecipeCard({ recipe, sessionId, onSaved, onDeleted, alre
       {/* Card header */}
       <div style={{ padding: "1rem 1.25rem 0.9rem", borderBottom: "1px solid rgba(200,169,110,0.1)", background: t.bgCategoryCard, position: "relative" }}>
         <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: "3px", background: "repeating-linear-gradient(180deg, #c8a96e 0px, #c8a96e 6px, transparent 6px, transparent 12px)", opacity: 0.25 }} />
-        <div style={{ fontSize: "0.52rem", letterSpacing: "0.18em", color: t.textFaint, textTransform: "uppercase", marginBottom: "0.3rem" }}>🎞️ Film Simulation Recipe · X-E5</div>
+        <div style={{ fontSize: "0.52rem", letterSpacing: "0.18em", color: t.textFaint, textTransform: "uppercase", marginBottom: "0.3rem" }}>Film Simulation Recipe · X-E5</div>
         <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.3rem", fontWeight: 900, color: t.text, letterSpacing: "-0.01em", marginBottom: "0.2rem" }}>{recipe.name}</div>
         <div style={{ fontSize: "0.62rem", color: t.textMuted }}>by {recipe.author}</div>
         {recipe.mood && (
@@ -176,7 +177,7 @@ export default function RecipeCard({ recipe, sessionId, onSaved, onDeleted, alre
 
         {recipe.bestFor && (
           <div style={{ marginTop: "0.5rem", padding: "0.5rem 0.7rem", background: t.bgButton, border: "1px solid #181410", borderRadius: "3px", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <span style={{ fontSize: "0.8rem" }}>📍</span>
+            <Icon name="dot" size={8} style={{ color: "currentColor" }} />
             <div>
               <div style={{ fontSize: "0.5rem", color: "#3a3020", letterSpacing: "0.1em", textTransform: "uppercase" }}>Best for</div>
               <div style={{ fontSize: "0.7rem", color: "#a89070" }}>{recipe.bestFor}</div>
@@ -189,19 +190,19 @@ export default function RecipeCard({ recipe, sessionId, onSaved, onDeleted, alre
       <div style={{ padding: "0.7rem 1.25rem", borderTop: `1px solid ${t.borderCard}`, display: "flex", gap: "0.4rem" }}>
         <button onClick={handleCopy}
           style={{ flex: 1, padding: "0.45rem 0", background: copied ? "rgba(76,175,77,0.12)" : t.bgCardUser, border: `1px solid ${copied ? "rgba(76,175,77,0.3)" : (isDark ? "rgba(200,169,110,0.15)" : "rgba(176,136,64,0.2)")}`, borderRadius: "3px", color: copied ? "#4caf7d" : "#c8a96e", cursor: "pointer", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s", fontFamily: "'DM Sans', sans-serif" }}>
-          {copied ? "✓ Copied" : "📋 Copy"}
+          <>{copied ? <><Icon name="check" size={12} /> Copied</> : <><Icon name="copy" size={12} /> Copy</>}</>
         </button>
         <button onClick={handleStar} disabled={saving}
           style={{ width: "34px", height: "34px", background: starred ? t.bgCardUser : "transparent", border: `1px solid ${starred ? (isDark ? "rgba(200,169,110,0.3)" : "rgba(176,136,64,0.35)") : t.borderCard}`, borderRadius: "3px", cursor: "pointer", fontSize: "0.9rem", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
           title={starred ? "Remove from saved" : "Save recipe"}>
-          {saving ? "…" : starred ? "⭐" : "☆"}
+          {saving ? <Icon name="loader" size={12} /> : starred ? <Icon name="starFilled" size={12} /> : <Icon name="star" size={12} />}
         </button>
         <button onClick={handlePdfExport}
           style={{ width: "34px", height: "34px", background: "transparent", border: "1px solid #181410", borderRadius: "3px", cursor: "pointer", fontSize: "0.75rem", color: "#4a3e2a", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", fontFamily: "'DM Sans', sans-serif" }}
           title="Export as PDF"
           onMouseEnter={e => { e.currentTarget.style.borderColor = "#c8a96e"; e.currentTarget.style.color = "#c8a96e"; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = "#181410"; e.currentTarget.style.color = "#4a3e2a"; }}>
-          PDF
+          <Icon name="print" size={13} />
         </button>
       </div>
     </div>

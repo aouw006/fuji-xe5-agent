@@ -6,6 +6,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from "recharts";
+import Icon from "@/components/Icon";
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const GOLD = "#c8a96e";
@@ -70,6 +71,8 @@ function Card({ title, children, span = 1 }: { title: string; children: React.Re
       borderRadius: "4px",
       padding: "1.25rem",
       gridColumn: `span ${span}`,
+      minWidth: 0,
+      overflow: "hidden",
     }}>
       <div style={{ fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", color: GOLD_DIM, marginBottom: "1rem" }}>
         {title}
@@ -135,25 +138,25 @@ export default function Dashboard() {
           </div>
         </div>
         <Link href="/" style={{ background: "transparent", border: `1px solid ${BORDER}`, color: TEXT_DIM, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s" }}>
-          ← Back to Agent
+          <Icon name="back" size={13} style={{ marginRight: "0.35rem", verticalAlign: "middle" }} />Back to Agent
         </Link>
       </header>
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "1.5rem", position: "relative", zIndex: 1 }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "4rem", color: TEXT_DIM, fontSize: "0.8rem" }}>
-            <div style={{ fontSize: "1.5rem", marginBottom: "0.75rem" }}>⏳</div>
+            <div style={{ marginBottom: "0.75rem", color: "#c8a96e" }}><Icon name="loader" size={28} /></div>
             Loading dashboard data...
           </div>
         ) : !data ? (
           <div style={{ textAlign: "center", padding: "4rem", color: TEXT_DIM }}>
-            <div style={{ fontSize: "1.5rem", marginBottom: "0.75rem" }}>⚠️</div>
+            <div style={{ marginBottom: "0.75rem", color: "#c8a96e" }}><Icon name="warning" size={28} /></div>
             <div style={{ fontSize: "0.8rem" }}>Could not load dashboard. Check Supabase connection.</div>
           </div>
         ) : (
           <>
             {/* ── Summary row ─────────────────────────────────────────────── */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "0.75rem", marginBottom: "1.25rem" }}>
+            <div className="dash-stats" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "0.75rem", marginBottom: "1.25rem" }}>
               {[
                 { label: "Month Cost", value: `$${data.monthCost.toFixed(4)}`, sub: `of $${data.budgetUsd.toFixed(2)} budget` },
                 { label: "Budget Used", value: `${budgetPct.toFixed(1)}%`, sub: `$${(data.budgetUsd - data.monthCost).toFixed(4)} remaining` },
@@ -183,11 +186,11 @@ export default function Dashboard() {
             {/* ── Tabs ────────────────────────────────────────────────────── */}
             <div style={{ display: "flex", gap: "0.25rem", marginBottom: "1rem", borderBottom: `1px solid ${BORDER}`, paddingBottom: "0" }}>
               {([
-                ["cost",    "💰 Cost & Usage"],
-                ["agents",  "🤖 Agent Breakdown"],
-                ["prompts", "🔍 Prompt Inspector"],
-                ["recipes", "🎞️ Recipe Analytics"],
-              ] as const).map(([tab, label]) => (
+                ["cost",    <><Icon name="cost" size={12} style={{ marginRight: "0.3rem" }} />Cost & Usage</>],
+                ["agents",  <><Icon name="agents" size={12} style={{ marginRight: "0.3rem" }} />Agents</>],
+                ["prompts", <><Icon name="inspect" size={12} style={{ marginRight: "0.3rem" }} />Prompts</>],
+                ["recipes", <><Icon name="film" size={12} style={{ marginRight: "0.3rem" }} />Recipes</>],
+              ].map(([tab, label]) => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
                   background: "transparent",
                   border: "none",
@@ -207,7 +210,7 @@ export default function Dashboard() {
 
             {/* ── Cost & Usage tab ─────────────────────────────────────────── */}
             {activeTab === "cost" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <Card title="Daily Cost (USD) — last 30 days" span={2}>
                   {data.costByDay.length === 0 ? (
                     <div style={{ color: TEXT_DIM, fontSize: "0.75rem", textAlign: "center", padding: "2rem" }}>No data yet — start asking questions!</div>
@@ -260,7 +263,7 @@ export default function Dashboard() {
 
             {/* ── Agent Breakdown tab ───────────────────────────────────────── */}
             {activeTab === "agents" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <Card title="Token share by agent">
                   {data.agentBreakdown.length === 0 ? (
                     <div style={{ color: TEXT_DIM, fontSize: "0.75rem", textAlign: "center", padding: "2rem" }}>No agent data yet</div>
@@ -331,7 +334,7 @@ export default function Dashboard() {
 
             {/* ── Prompt Inspector tab ──────────────────────────────────────── */}
             {activeTab === "prompts" && (
-              <div style={{ display: "grid", gridTemplateColumns: selectedPrompt ? "1fr 1fr" : "1fr", gap: "1rem" }}>
+              <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: selectedPrompt ? "1fr 1fr" : "1fr", gap: "1rem" }}>
                 <Card title={`Recent queries — ${data.promptLog.length} logged`}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", maxHeight: "600px", overflowY: "auto" }}>
                     {data.promptLog.length === 0 ? (
@@ -418,7 +421,7 @@ export default function Dashboard() {
 
             {/* ── Recipe Analytics tab ──────────────────────────────────────── */}
             {activeTab === "recipes" && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <Card title="Film simulations in saved recipes">
                   {data.filmSimBreakdown.length === 0 ? (
                     <div style={{ color: TEXT_DIM, fontSize: "0.75rem", textAlign: "center", padding: "2rem" }}>

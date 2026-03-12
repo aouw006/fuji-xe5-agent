@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useState, useEffect } from "react";
 import RecipeCard, { RecipeData } from "./RecipeCard";
@@ -50,7 +51,7 @@ export default function SavedRecipesPanel({ open, sessionId }: Props) {
 
       {!loading && recipes.length === 0 && (
         <div style={{ padding: "1.5rem 1.25rem", textAlign: "center" }}>
-          <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>🎞️</div>
+          <div style={{ marginBottom: "0.5rem", color: "#c8a96e" }}><Icon name="film" size={24} /></div>
           <div style={{ fontSize: "0.72rem", color: "#3a3020", lineHeight: 1.6 }}>No saved recipes yet.<br />Star a recipe to save it here.</div>
         </div>
       )}

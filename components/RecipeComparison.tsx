@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useState, useEffect } from "react";
 import { darkTheme, lightTheme } from "@/lib/theme";
@@ -124,7 +125,7 @@ export default function RecipeComparison({ open, onClose, isDark }: Props) {
             style={{ background: "transparent", border: `1px solid ${t.borderSidebar}`, color: t.textFaint, width: "30px", height: "30px", borderRadius: "2px", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; }}>
-            ✕
+            <Icon name="close" size={14} />
           </button>
         </div>
 
@@ -136,7 +137,7 @@ export default function RecipeComparison({ open, onClose, isDark }: Props) {
 
           {!loading && recipes.length < 2 && (
             <div style={{ textAlign: "center", padding: "3rem" }}>
-              <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>🎞️</div>
+              <div style={{ marginBottom: "0.75rem", color: "#c8a96e" }}><Icon name="film" size={28} /></div>
               <div style={{ fontSize: "0.78rem", color: t.textMuted, lineHeight: 1.7 }}>
                 You need at least 2 saved recipes to compare.<br />
                 Star recipes from the chat to save them.

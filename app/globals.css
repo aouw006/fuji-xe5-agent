@@ -40,3 +40,10 @@ textarea:focus { outline: none; }
 @media (min-width: 481px) {
   .show-mobile-only { display: none !important; }
 }
+
+/* ─── Dashboard mobile ───────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .dash-grid { grid-template-columns: 1fr !important; }
+  .dash-grid > * { grid-column: span 1 !important; }
+  .dash-stats { grid-template-columns: repeat(2, 1fr) !important; }
+}

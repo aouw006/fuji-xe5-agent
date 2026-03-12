@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useState, useEffect } from "react";
 import RecipeCard, { RecipeData } from "./RecipeCard";
@@ -91,7 +92,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
               style={{ background: "transparent", border: `1px solid ${t.borderSidebar}`, color: t.textFaint, width: "32px", height: "32px", borderRadius: "2px", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; }}>
-              ✕
+              <Icon name="close" size={14} />
             </button>
           </div>
         </div>
@@ -110,7 +111,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
 
             {!loading && recipes.length === 0 && (
               <div style={{ padding: "2rem 1.25rem", textAlign: "center" }}>
-                <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>🎞️</div>
+                <div style={{ fontSize: "2rem", marginBottom: "0.75rem", color: "#c8a96e" }}><Icon name="film" size={32} /></div>
                 <div style={{ fontSize: "0.72rem", color: t.textVeryFaint, lineHeight: 1.7 }}>
                   No saved recipes yet.<br />Star a recipe to save it here.
                 </div>
@@ -133,7 +134,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
                   onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = isDark ? "rgba(200,169,110,0.04)" : "rgba(176,136,64,0.06)"; }}
                   onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}>
                   <div style={{ fontSize: "0.6rem", color: t.textFaint, letterSpacing: "0.08em", marginBottom: "0.2rem", textTransform: "uppercase" }}>
-                    🎞️ {i + 1} of {recipes.length}
+                    {i + 1} of {recipes.length}
                   </div>
                   <div style={{ fontSize: "0.82rem", fontFamily: "'Playfair Display', serif", color: isSelected ? t.text : t.textMuted, lineHeight: 1.3, marginBottom: "0.25rem" }}>
                     {recipe.name}
@@ -190,7 +191,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
             ) : (
               !loading && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: "0.75rem" }}>
-                  <div style={{ fontSize: "3rem" }}>🎞️</div>
+                  <div style={{ color: "#c8a96e" }}><Icon name="film" size={40} /></div>
                   <div style={{ fontSize: "0.8rem", color: t.textVeryFaint }}>Select a recipe from the list</div>
                 </div>
               )

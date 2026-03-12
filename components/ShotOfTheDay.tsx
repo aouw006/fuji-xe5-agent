@@ -1,4 +1,5 @@
 "use client";
+import Icon from "@/components/Icon";
 
 import { useState, useEffect } from "react";
 import { darkTheme, lightTheme } from "@/lib/theme";
@@ -259,7 +260,7 @@ export default function ShotOfTheDay({ isDark, onPrompt }: Props) {
             style={{ flex: 1, background: isDark ? "rgba(200,169,110,0.08)" : "rgba(176,136,64,0.1)", border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)"}`, color: t.gold, padding: "0.45rem 0.75rem", borderRadius: "3px", cursor: "pointer", fontSize: "0.62rem", letterSpacing: "0.08em", textTransform: "uppercase", transition: "all 0.2s" }}
             onMouseEnter={e => e.currentTarget.style.background = isDark ? "rgba(200,169,110,0.14)" : "rgba(176,136,64,0.16)"}
             onMouseLeave={e => e.currentTarget.style.background = isDark ? "rgba(200,169,110,0.08)" : "rgba(176,136,64,0.1)"}>
-            Ask about this recipe →
+            <>Ask about this recipe <Icon name="arrowRight" size={12} /></>
           </button>
           <button
             onClick={() => fetchShot(getTodayKey() + "_refresh_" + Date.now())}
@@ -267,7 +268,7 @@ export default function ShotOfTheDay({ isDark, onPrompt }: Props) {
             style={{ background: "transparent", border: `1px solid ${t.borderCard}`, color: t.textVeryFaint, padding: "0.45rem 0.6rem", borderRadius: "3px", cursor: "pointer", fontSize: "0.75rem", transition: "all 0.2s" }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderCard; e.currentTarget.style.color = t.textVeryFaint; }}>
-            ↺
+            <Icon name="reset" size={13} />
           </button>
         </div>
       </div>
