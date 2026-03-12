@@ -130,9 +130,9 @@ DECISION STRATEGY:
 6. Answer when you have concrete specs, prices, or recommendations — don't keep searching if you have enough
 
 MINIMUM RESEARCH BEFORE ANSWERING:
-- At least one knowledge_base search
-- At least one web search
-- At least one fetch_url (pick the most relevant URL from any search result)
+- At least three knowledge_base search
+- At least three web search
+- At least three fetch_url (pick the most relevant URL from any search result)
 - For comparisons: specs AND prices for EACH item being compared
 - Only call "answer" once you have all of the above
 
