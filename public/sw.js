@@ -1,25 +1,26 @@
-const CACHE_NAME = "xe5-agent-v4";
-const STATIC_ASSETS = ["/", "/manifest.json"];
+// Cache version — bump this on every deploy (or automate via build)
+const CACHE_VERSION = Date.now(); // changes every deploy when sw.js is re-served
+const CACHE_NAME = `xe5-agent-${CACHE_VERSION}`;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
+  // Don't pre-cache anything — let requests populate the cache naturally
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
+  // Delete ALL old caches whenever a new SW activates
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+      Promise.all(keys.map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
-  // Network first for API calls
-  if (event.request.url.includes("/api/")) {
+  const url = new URL(event.request.url);
+
+  // API calls: always network, never cache
+  if (url.pathname.startsWith("/api/")) {
     event.respondWith(
       fetch(event.request).catch(() =>
         new Response(JSON.stringify({ error: "Offline — please reconnect" }), {
@@ -30,8 +31,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Cache first for static assets
+  // Next.js static chunks (_next/static): these are content-hashed so safe to cache
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      caches.match(event.request).then(
+        (cached) => cached || fetch(event.request).then((res) => {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+          return res;
+        })
+      )
+    );
+    return;
+  }
+
+  // Everything else (HTML pages, manifests): NETWORK FIRST
+  // This ensures deployments are always picked up
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });

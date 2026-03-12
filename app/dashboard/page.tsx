@@ -55,7 +55,7 @@ interface DashboardData {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function Card({ title, children, span = 1 }: { title: string; children: React.ReactNode; span?: number }) {
+function Card({ title, children, span = 1, t }: { title: string; children: React.ReactNode; span?: number; t: typeof darkTheme }) {
   return (
     <div style={{
       background: t.bgCard,
@@ -74,7 +74,7 @@ function Card({ title, children, span = 1 }: { title: string; children: React.Re
   );
 }
 
-function StatPill({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function StatPill({ label, value, sub, t }: { label: string; value: string; sub?: string; t: typeof darkTheme }) {
   return (
     <div style={{ textAlign: "center" }}>
       <div style={{ fontSize: "1.6rem", fontWeight: 700, color: t.gold, fontFamily: "DM Mono, monospace" }}>{value}</div>
@@ -84,10 +84,10 @@ function StatPill({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string }[]; label?: string }) {
-  if (!active || !payload?.length) return null;
+function CustomTooltip({ active, payload, label, t }: { active?: boolean; payload?: { value: number; name: string }[]; label?: string; t?: typeof darkTheme }) {
+  if (!active || !payload?.length || !t) return null;
   return (
-    <div style={{ background: t.border, border: `1px solid ${t.border}`, borderRadius: "3px", padding: "0.5rem 0.75rem", fontSize: "0.7rem" }}>
+    <div style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: "3px", padding: "0.5rem 0.75rem", fontSize: "0.7rem" }}>
       <div style={{ color: t.textMuted, marginBottom: "0.25rem" }}>{label}</div>
       {payload.map((p, i) => (
         <div key={i} style={{ color: t.gold }}>
@@ -221,7 +221,7 @@ export default function Dashboard() {
             {/* ── Cost & Usage tab ─────────────────────────────────────────── */}
             {activeTab === "cost" && (
               <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <Card title="Daily Cost (USD) — last 30 days" span={2}>
+                <Card t={t} title="Daily Cost (USD) — last 30 days" span={2}>
                   {data.costByDay.length === 0 ? (
                     <div style={{ color: t.textMuted, fontSize: "0.75rem", textAlign: "center", padding: "2rem" }}>No data yet — start asking questions!</div>
                   ) : (
@@ -229,14 +229,14 @@ export default function Dashboard() {
                       <LineChart data={data.costByDay} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: t.textMuted }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fontSize: 10, fill: t.textMuted }} axisLine={false} tickLine={false} tickFormatter={v => `$${v.toFixed(4)}`} width={60} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip t={t} />} />
                         <Line type="monotone" dataKey="cost" name="cost" stroke={t.gold} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: t.gold }} />
                       </LineChart>
                     </ResponsiveContainer>
                   )}
                 </Card>
 
-                <Card title="Daily Token Volume — last 30 days">
+                <Card t={t} title="Daily Token Volume — last 30 days">
                   {data.costByDay.length === 0 ? (
                     <div style={{ color: t.textMuted, fontSize: "0.75rem", textAlign: "center", padding: "2rem" }}>No data yet</div>
                   ) : (
@@ -244,14 +244,14 @@ export default function Dashboard() {
                       <BarChart data={data.costByDay} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: t.textMuted }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fontSize: 10, fill: t.textMuted }} axisLine={false} tickLine={false} tickFormatter={v => v > 1000 ? `${(v/1000).toFixed(0)}k` : v} width={40} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip t={t} />} />
                         <Bar dataKey="tokens" name="tokens" fill={t.gold} opacity={0.7} radius={[2, 2, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   )}
                 </Card>
 
-                <Card title="Cost per Query (avg)">
+                <Card t={t} title="Cost per Query (avg)">
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", paddingTop: "0.5rem" }}>
                     {data.agentBreakdown.map(agent => {
                       const q = data.agentQueries[agent.id];
@@ -274,7 +274,7 @@ export default function Dashboard() {
             {/* ── Agent Breakdown tab ───────────────────────────────────────── */}
             {activeTab === "agents" && (
               <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <Card title="Token share by agent">
+                <Card t={t} title="Token share by agent">
                   {data.agentBreakdown.length === 0 ? (
                     <div style={{ color: t.textMuted, fontSize: "0.75rem", textAlign: "center", padding: "2rem" }}>No agent data yet</div>
                   ) : (
@@ -292,7 +292,7 @@ export default function Dashboard() {
                   )}
                 </Card>
 
-                <Card title="Queries & cost per agent">
+                <Card t={t} title="Queries & cost per agent">
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", paddingTop: "0.25rem" }}>
                     {data.agentBreakdown.map(agent => {
                       const q = data.agentQueries[agent.id];
@@ -317,7 +317,7 @@ export default function Dashboard() {
                   </div>
                 </Card>
 
-                <Card title="Queries per agent — bar chart" span={2}>
+                <Card t={t} title="Queries per agent — bar chart" span={2}>
                   <ResponsiveContainer width="100%" height={180}>
                     <BarChart
                       data={data.agentBreakdown.map(a => ({
@@ -345,7 +345,7 @@ export default function Dashboard() {
             {/* ── Prompt Inspector tab ──────────────────────────────────────── */}
             {activeTab === "prompts" && (
               <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: selectedPrompt ? "1fr 1fr" : "1fr", gap: "1rem" }}>
-                <Card title={`Recent queries — ${data.promptLog.length} logged`}>
+                <Card t={t} title={`Recent queries — ${data.promptLog.length} logged`}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", maxHeight: "600px", overflowY: "auto" }}>
                     {data.promptLog.length === 0 ? (
                       <div style={{ color: t.textMuted, fontSize: "0.75rem", padding: "1rem 0" }}>
@@ -381,7 +381,7 @@ export default function Dashboard() {
 
                 {selectedPrompt && (
                   <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                    <Card title="Query details">
+                    <Card t={t} title="Query details">
                       <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
                         {[
                           ["Agent", AGENT_LABELS[selectedPrompt.agent_id] || selectedPrompt.agent_id],
@@ -402,7 +402,7 @@ export default function Dashboard() {
                     </Card>
 
                     {selectedPrompt.sources_used?.length > 0 && (
-                      <Card title={`Sources searched — ${selectedPrompt.sources_used.length}`}>
+                      <Card t={t} title={`Sources searched — ${selectedPrompt.sources_used.length}`}>
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
                           {selectedPrompt.sources_used.map((s, i) => (
                             <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
@@ -418,7 +418,7 @@ export default function Dashboard() {
                     )}
 
                     {selectedPrompt.prompt_sent && (
-                      <Card title="System prompt sent to Groq">
+                      <Card t={t} title="System prompt sent to Groq">
                         <div style={{ fontSize: "0.62rem", color: t.textMuted, background: t.bg, border: `1px solid ${t.border}`, borderRadius: "3px", padding: "0.75rem", maxHeight: "300px", overflowY: "auto", lineHeight: 1.7, whiteSpace: "pre-wrap", fontFamily: "DM Mono, monospace" }}>
                           {selectedPrompt.prompt_sent}
                         </div>
@@ -432,7 +432,7 @@ export default function Dashboard() {
             {/* ── Recipe Analytics tab ──────────────────────────────────────── */}
             {activeTab === "recipes" && (
               <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <Card title="Film simulations in saved recipes">
+                <Card t={t} title="Film simulations in saved recipes">
                   {data.filmSimBreakdown.length === 0 ? (
                     <div style={{ color: t.textMuted, fontSize: "0.75rem", textAlign: "center", padding: "2rem" }}>
                       No saved recipes yet. Star a recipe to save it!
@@ -449,7 +449,7 @@ export default function Dashboard() {
                   )}
                 </Card>
 
-                <Card title="Saved recipe moods">
+                <Card t={t} title="Saved recipe moods">
                   {data.moodBreakdown.length === 0 ? (
                     <div style={{ color: t.textMuted, fontSize: "0.75rem", textAlign: "center", padding: "2rem" }}>No mood data yet</div>
                   ) : (
@@ -467,11 +467,11 @@ export default function Dashboard() {
                   )}
                 </Card>
 
-                <Card title="Recipe summary" span={2}>
+                <Card t={t} title="Recipe summary" span={2}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem" }}>
-                    <StatPill label="Total saved" value={String(data.totalRecipes)} />
-                    <StatPill label="Unique film sims" value={String(data.filmSimBreakdown.length)} />
-                    <StatPill label="Unique moods" value={String(data.moodBreakdown.length)} />
+                    <StatPill t={t} label="Total saved" value={String(data.totalRecipes)} />
+                    <StatPill t={t} label="Unique film sims" value={String(data.filmSimBreakdown.length)} />
+                    <StatPill t={t} label="Unique moods" value={String(data.moodBreakdown.length)} />
                   </div>
                 </Card>
               </div>
