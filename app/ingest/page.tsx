@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { darkTheme, lightTheme } from "@/lib/theme";
 
 type AgentId = "film_recipes" | "camera_settings" | "gear" | "comparison" | "community" | "locations";
@@ -25,6 +25,14 @@ interface UrlEntry {
 
 export default function IngestPage() {
   const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("xe5_theme");
+    setIsDark(saved !== "light");
+    const handler = (e: StorageEvent) => { if (e.key === "xe5_theme") setIsDark(e.newValue !== "light"); };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
   const t = isDark ? darkTheme : lightTheme;
   const goldBorder = isDark ? "rgba(200,169,110,0.25)" : "rgba(176,136,64,0.3)";
 
@@ -127,12 +135,6 @@ export default function IngestPage() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             {totalChunks > 0 && <div style={{ fontSize: "0.65rem", color: t.gold }}>{totalChunks} chunks ingested</div>}
-            <button onClick={() => setIsDark(d => !d)}
-              style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, width: "30px", height: "30px", borderRadius: "2px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", transition: "all 0.2s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}>
-              {isDark ? "☀" : "☾"}
-            </button>
           </div>
         </div>
 

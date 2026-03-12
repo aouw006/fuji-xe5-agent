@@ -83,6 +83,14 @@ function CriteriaBar({ label, value, textFaint }: { label: string; value: number
 
 export default function EvalsPage() {
   const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("xe5_theme");
+    setIsDark(saved !== "light");
+    const handler = (e: StorageEvent) => { if (e.key === "xe5_theme") setIsDark(e.newValue !== "light"); };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
   const t = isDark ? darkTheme : lightTheme;
   const goldBorder = isDark ? "rgba(200,169,110,0.25)" : "rgba(176,136,64,0.3)";
 
@@ -211,12 +219,6 @@ export default function EvalsPage() {
             </div>
           </div>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <button onClick={() => setIsDark(d => !d)}
-              style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, width: "30px", height: "30px", borderRadius: "2px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", transition: "all 0.2s" }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}>
-              {isDark ? "☀" : "☾"}
-            </button>
             <button onClick={runAll} disabled={running}
               style={{ background: running ? "transparent" : t.goldDim, border: `1px solid ${running ? t.border : goldBorder}`, color: running ? t.textMuted : t.gold, padding: "0.6rem 1.4rem", borderRadius: "3px", cursor: running ? "not-allowed" : "pointer", fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s" }}>
               {running && !runningAgent
