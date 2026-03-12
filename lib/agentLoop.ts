@@ -50,8 +50,12 @@ async function searchKnowledgeBase(query: string, send: (d: object) => void): Pr
   send({ type: "status", text: `📚 Searching knowledge base: "${query}"` });
   try {
     const chunks = await retrieveChunks(query, undefined, 5, 0.3);
-    if (chunks.length === 0) return "No relevant results found in knowledge base.";
-    return chunks.map((c, i) => `[${i + 1}] ${decodeHtml(c.title)}\n${decodeHtml(c.content)}\n(${c.url})`).join("\n\n---\n\n");
+    if (chunks.length === 0) {
+      send({ type: "status", text: `📚 Knowledge base: no results for "${query}"` });
+      return "No relevant results found in knowledge base.";
+    }
+    send({ type: "status", text: `📚 Knowledge base: ${chunks.length} chunks found` });
+    return chunks.map((c, i) => `[${i + 1}] ${decodeHtml(c.title)}\nURL: ${c.url}\n${decodeHtml(c.content)}`).join("\n\n---\n\n");
   } catch (e) { return `Knowledge base search failed: ${e}`; }
 }
 
@@ -120,26 +124,21 @@ Each response must be a single JSON object. Available actions:
 
 DECISION STRATEGY:
 1. Start with search_knowledge_base — check curated Fujifilm articles first
-2. Evaluate the result:
-   - If results are RELEVANT and detailed → you may have enough, consider answering or doing one more targeted search
-   - If results are WEAK or off-topic → search the web instead
-   - If a search result contains a URL that looks highly relevant (e.g. a specific lens review) → use fetch_url to read it in full
-3. For comparisons: get specs for EACH item, then prices
-4. For prices: always search_web with "AUD" in the query
-5. Use fetch_url when you spot a promising URL in search results — it gives you full article content, not just snippets
-6. Answer when you have concrete specs, prices, or recommendations — don't keep searching if you have enough
+2. Always do a SECOND knowledge_base search with a different angle (e.g. first search specs, second search real-world use or reviews)
+3. Always do at least TWO web searches — one for specs/reviews, one specifically for prices in AUD
+4. Use fetch_url when you spot a promising URL in search results — full article content beats snippets
+5. For comparisons: cover specs, real-world use, AND prices for EACH item
 
-MINIMUM RESEARCH BEFORE ANSWERING:
-- At least three knowledge_base search
-- At least three web search
-- At least three fetch_url (pick the most relevant URL from any search result)
-- For comparisons: specs AND prices for EACH item being compared
-- Only call "answer" once you have all of the above
+MINIMUM BEFORE ANSWERING:
+- 2 × search_knowledge_base (different queries)
+- 2 × search_web (one for content, one for "price AUD")
+- 1 × fetch_url on the most relevant URL found
+- Only call "answer" once ALL of the above are done
 
-
-- "The knowledge base returned weak results about X, so I'll search the web for current reviews"
+WHAT GOOD REASONING LOOKS LIKE:
+- "I've done one KB search — I need a second with a different angle before searching the web"
 - "Search result [2] links to a full lens review — I'll fetch that for detailed specs"
-- "I now have specs for both lenses and AUD prices — I have enough to write a complete comparison"
+- "I now have 2 KB searches, 2 web searches, and a fetched article — I have enough to answer"
 
 Respond with valid JSON only. No other text.`;
 
@@ -159,6 +158,17 @@ export async function runComparisonAgent(
 
   const agentSteps: AgentStep[] = [];
   let researchSummary = "";
+
+  // Track how many times each tool has been used
+  const toolCounts = { search_knowledge_base: 0, search_web: 0, fetch_url: 0 };
+
+  function getMissingTools(): string | null {
+    const missing: string[] = [];
+    if (toolCounts.search_knowledge_base < 2) missing.push(`${2 - toolCounts.search_knowledge_base} more search_knowledge_base (use a different query angle)`);
+    if (toolCounts.search_web < 2) missing.push(`${2 - toolCounts.search_web} more search_web (include one for price in AUD)`);
+    if (toolCounts.fetch_url < 1) missing.push("1 fetch_url on the most relevant URL found so far");
+    return missing.length > 0 ? missing.join("; ") : null;
+  }
 
   // Running knowledge ledger — builds up what the agent has found so far
   const knowledgeLedger: { step: number; tool: string; input: string; keyFindings: string }[] = [];
@@ -228,6 +238,17 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
     }
 
     if (decision.action === "answer") {
+      const missing = getMissingTools();
+      if (missing) {
+        // Not ready to answer — tell the agent what's still missing
+        send({ type: "status", text: `🔄 More research needed...` });
+        researchMessages.push({ role: "assistant", content: raw });
+        researchMessages.push({
+          role: "user",
+          content: `You tried to answer but you haven't completed the minimum research yet. You still need: ${missing}. Continue researching.`,
+        });
+        continue;
+      }
       researchSummary = decision.text;
       break;
     }
@@ -238,12 +259,15 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
     if (decision.action === "search_web") {
       toolInput = decision.query;
       toolResult = await searchWeb(decision.query, send);
+      toolCounts.search_web++;
     } else if (decision.action === "search_knowledge_base") {
       toolInput = decision.query;
       toolResult = await searchKnowledgeBase(decision.query, send);
+      toolCounts.search_knowledge_base++;
     } else if (decision.action === "fetch_url") {
       toolInput = decision.url;
       toolResult = await fetchUrl(decision.url, send);
+      toolCounts.fetch_url++;
     }
 
     agentSteps.push({
