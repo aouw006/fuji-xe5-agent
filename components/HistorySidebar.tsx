@@ -14,7 +14,9 @@ interface HistorySession {
 
 interface Props {
   open: boolean;
+  pinned?: boolean;
   onClose: () => void;
+  onPin?: () => void;
   onLoadSession: (sessionId: string, messages: { role: string; content: string }[]) => void;
   currentSessionId: string;
   isDark: boolean;
@@ -80,7 +82,7 @@ function SessionRow({ session, isCurrent, isLoading, isDark, onLoad, onDelete }:
   );
 }
 
-export default function HistorySidebar({ open, onClose, onLoadSession, currentSessionId, isDark, onCompare }: Props) {
+export default function HistorySidebar({ open, pinned = false, onClose, onPin, onLoadSession, currentSessionId, isDark, onCompare }: Props) {
   const t = isDark ? darkTheme : lightTheme;
   const [sessions, setSessions] = useState<HistorySession[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,7 +110,7 @@ export default function HistorySidebar({ open, onClose, onLoadSession, currentSe
       const res = await fetch(`/api/history?session=${sessionId}`);
       const data = await res.json();
       onLoadSession(sessionId, data.messages || []);
-      onClose();
+      if (!pinned) onClose();
     } catch {}
     setLoadingSession(null);
   };
@@ -132,12 +134,13 @@ export default function HistorySidebar({ open, onClose, onLoadSession, currentSe
 
   return (
     <>
-      {open && <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 20, backdropFilter: "blur(2px)" }} />}
+      {/* Overlay — only shown in overlay mode, not when pinned */}
+      {open && !pinned && <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 20, backdropFilter: "blur(2px)" }} />}
 
       <div style={{
-        position: "fixed", top: 0, left: 0, bottom: 0, width: "min(280px, 85vw)",
-        background: t.bgSidebar, borderRight: `1px solid ${t.borderSidebar}`, zIndex: 30,
-        transform: open ? "translateX(0)" : "translateX(-100%)",
+        position: "fixed", top: 0, left: 0, bottom: 0, width: "280px",
+        background: t.bgSidebar, borderRight: `1px solid ${t.borderSidebar}`, zIndex: pinned ? 5 : 30,
+        transform: open || pinned ? "translateX(0)" : "translateX(-100%)",
         transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s",
         display: "flex", flexDirection: "column",
       }}>
@@ -151,12 +154,23 @@ export default function HistorySidebar({ open, onClose, onLoadSession, currentSe
               Hold to delete
             </div>
           </div>
-          <button onClick={onClose}
-            style={{ background: "transparent", border: `1px solid ${t.borderSidebar}`, color: t.textFaint, width: "26px", height: "26px", borderRadius: "2px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; }}>
-            <Icon name="close" size={13} />
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+            {onPin && (
+              <button onClick={onPin}
+                title={pinned ? "Unpin sidebar" : "Pin sidebar"}
+                style={{ background: pinned ? t.goldDim : "transparent", border: `1px solid ${pinned ? t.gold : t.borderSidebar}`, color: pinned ? t.gold : t.textFaint, width: "26px", height: "26px", borderRadius: "2px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+                onMouseLeave={e => { if (!pinned) { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; } }}>
+                <Icon name="pin" size={13} />
+              </button>
+            )}
+            <button onClick={onClose}
+              style={{ background: "transparent", border: `1px solid ${t.borderSidebar}`, color: t.textFaint, width: "26px", height: "26px", borderRadius: "2px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; }}>
+              <Icon name="close" size={13} />
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}

@@ -121,6 +121,7 @@ export default function Home() {
   const [statusLog, setStatusLog] = useState<string[]>([]);
   const [started, setStarted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarPinned, setSidebarPinned] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -300,10 +301,13 @@ export default function Home() {
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")`, backgroundSize: "256px", opacity: t.grain }} />
       <div style={{ position: "fixed", top: "-20%", left: "50%", transform: "translateX(-50%)", width: "700px", height: "500px", background: `radial-gradient(ellipse, ${t.gradientTop} 0%, transparent 70%)`, pointerEvents: "none", zIndex: 0 }} />
 
-      <HistorySidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLoadSession={loadSession} currentSessionId={sessionId} isDark={isDark} onCompare={() => setCompareOpen(true)} />
+      <HistorySidebar open={sidebarOpen || sidebarPinned} pinned={sidebarPinned} onClose={() => { setSidebarOpen(false); setSidebarPinned(false); }} onPin={() => { setSidebarPinned(p => !p); setSidebarOpen(false); }} onLoadSession={loadSession} currentSessionId={sessionId} isDark={isDark} onCompare={() => setCompareOpen(true)} />
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} isDark={isDark} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} isDark={isDark} fontSize={fontSize} onFontSizeChange={setFontSize} />
       <RecipeComparison open={compareOpen} onClose={() => setCompareOpen(false)} isDark={isDark} />
+
+      {/* Content shifts right when sidebar is pinned */}
+      <div style={{ marginLeft: sidebarPinned ? "280px" : 0, transition: "margin-left 0.3s cubic-bezier(0.4,0,0.2,1)", flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 
       {/* Header */}
       <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${t.border}`, background: t.bgHeader, backdropFilter: "blur(16px)", padding: "0.6rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", transition: "background 0.3s, border-color 0.3s" }}>
@@ -526,6 +530,7 @@ export default function Home() {
           </button>
         </div>
       </main>
+      </div> {/* end pinned content wrapper */}
     </div>
   );
 }
