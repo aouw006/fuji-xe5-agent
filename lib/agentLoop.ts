@@ -1,14 +1,9 @@
 /**
- * Agentic Comparison Loop
+ * Agentic Comparison Loop — Manual JSON Tool Dispatch
  *
- * The LLM decides which tools to call and when to stop.
- * Tools: search_web, fetch_url, search_knowledge_base, final_answer
- *
- * Loop:
- *   1. Send goal + tools to Groq
- *   2. LLM returns either a tool_call or final_answer
- *   3. Execute the tool, send result back
- *   4. Repeat until final_answer
+ * We avoid Groq's native tool_use (unreliable with Llama 3.3).
+ * Instead, we ask the model to output a JSON decision each step,
+ * parse it ourselves, execute the tool, and feed results back.
  */
 
 import Groq from "groq-sdk";
@@ -17,123 +12,84 @@ import type { AgentStep } from "@/lib/memory";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const TAVILY_KEY = process.env.TAVILY_API_KEY!;
-const MAX_STEPS = 8; // safety limit
+const MAX_STEPS = 6;
 
-// ─── Tool definitions ─────────────────────────────────────────────────────────
+// ─── Tools ────────────────────────────────────────────────────────────────────
 
-const TOOLS: Groq.Chat.ChatCompletionTool[] = [
-  {
-    type: "function",
-    function: {
-      name: "search_web",
-      description: "Search the web for current information about cameras, lenses, prices, specs, or reviews. Use specific queries for best results.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "The search query. Be specific — e.g. 'Fujifilm XF 23mm f1.4 R WR price AUD 2025' rather than just 'XF 23mm price'",
-          },
-        },
-        required: ["query"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "fetch_url",
-      description: "Fetch the full content of a specific URL. Use when you have a promising URL from search results and need the complete details.",
-      parameters: {
-        type: "object",
-        properties: {
-          url: { type: "string", description: "The full URL to fetch" },
-        },
-        required: ["url"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "search_knowledge_base",
-      description: "Search the curated knowledge base of ingested Fujifilm articles and recipes. Use this first for film recipes, settings, and X-E5 specific topics.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "What to search for" },
-        },
-        required: ["query"],
-      },
-    },
-  },
-];
-
-// ─── Tool execution ───────────────────────────────────────────────────────────
-
-async function executeTool(
-  name: string,
-  args: Record<string, string>,
-  send: (data: object) => void
-): Promise<string> {
-  if (name === "search_web") {
-    send({ type: "status", text: `🔍 Searching: "${args.query}"` });
-    try {
-      const res = await fetch("https://api.tavily.com/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: TAVILY_KEY,
-          query: args.query,
-          max_results: 5,
-          include_raw_content: false,
-        }),
-      });
-      const data = await res.json();
-      const results = (data.results || [])
-        .map((r: { title: string; url: string; content: string }, i: number) =>
-          `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content}`
-        )
-        .join("\n\n---\n\n");
-      return results || "No results found.";
-    } catch (e) {
-      return `Search failed: ${e}`;
-    }
-  }
-
-  if (name === "fetch_url") {
-    send({ type: "status", text: `📄 Reading: ${args.url}` });
-    try {
-      const res = await fetch("https://api.tavily.com/extract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ api_key: TAVILY_KEY, urls: [args.url] }),
-      });
-      const data = await res.json();
-      const content = data.results?.[0]?.raw_content || "";
-      return content.slice(0, 3000) || "Could not extract content.";
-    } catch (e) {
-      return `Fetch failed: ${e}`;
-    }
-  }
-
-  if (name === "search_knowledge_base") {
-    send({ type: "status", text: `📚 Searching knowledge base: "${args.query}"` });
-    try {
-      const chunks = await retrieveChunks(args.query, undefined, 5, 0.3);
-      if (chunks.length === 0) return "No relevant results found in knowledge base.";
-      return chunks
-        .map((c, i) => `[${i + 1}] ${c.title}\n${c.content}\n(${c.url})`)
-        .join("\n\n---\n\n");
-    } catch (e) {
-      return `Knowledge base search failed: ${e}`;
-    }
-  }
-
-  return "Unknown tool.";
+async function searchWeb(query: string, send: (d: object) => void): Promise<string> {
+  send({ type: "status", text: `🔍 Searching: "${query}"` });
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: TAVILY_KEY, query, max_results: 5 }),
+    });
+    const data = await res.json();
+    return (data.results || [])
+      .map((r: { title: string; url: string; content: string }, i: number) =>
+        `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content}`
+      )
+      .join("\n\n---\n\n") || "No results found.";
+  } catch (e) { return `Search failed: ${e}`; }
 }
 
-// ─── Main agentic loop ────────────────────────────────────────────────────────
+async function fetchUrl(url: string, send: (d: object) => void): Promise<string> {
+  send({ type: "status", text: `📄 Reading: ${url}` });
+  try {
+    const res = await fetch("https://api.tavily.com/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: TAVILY_KEY, urls: [url] }),
+    });
+    const data = await res.json();
+    return (data.results?.[0]?.raw_content || "").slice(0, 3000) || "Could not extract content.";
+  } catch (e) { return `Fetch failed: ${e}`; }
+}
+
+async function searchKnowledgeBase(query: string, send: (d: object) => void): Promise<string> {
+  send({ type: "status", text: `📚 Searching knowledge base: "${query}"` });
+  try {
+    const chunks = await retrieveChunks(query, undefined, 5, 0.3);
+    if (chunks.length === 0) return "No relevant results found in knowledge base.";
+    return chunks.map((c, i) => `[${i + 1}] ${c.title}\n${c.content}\n(${c.url})`).join("\n\n---\n\n");
+  } catch (e) { return `Knowledge base search failed: ${e}`; }
+}
+
+// ─── Decision parsing ─────────────────────────────────────────────────────────
+
+type Decision =
+  | { action: "search_web"; query: string }
+  | { action: "search_knowledge_base"; query: string }
+  | { action: "fetch_url"; url: string }
+  | { action: "answer"; text: string };
+
+function parseDecision(raw: string): Decision | null {
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const obj = JSON.parse(match[0]);
+    if (obj.action === "answer" && obj.text) return obj as Decision;
+    if (obj.action === "search_web" && obj.query) return obj as Decision;
+    if (obj.action === "search_knowledge_base" && obj.query) return obj as Decision;
+    if (obj.action === "fetch_url" && obj.url) return obj as Decision;
+    return null;
+  } catch { return null; }
+}
+
+// ─── Planner prompt ───────────────────────────────────────────────────────────
+
+const PLANNER_SYSTEM = `You are a research agent for Fujifilm X-E5 photography. Gather information step by step before writing a final answer.
+
+Each response must be a single JSON object. Choose one action:
+
+Search the web: {"action": "search_web", "query": "specific query"}
+Search knowledge base: {"action": "search_knowledge_base", "query": "query"}
+Read a URL: {"action": "fetch_url", "url": "https://..."}
+Final answer: {"action": "answer", "text": "your complete markdown answer"}
+
+Start with search_knowledge_base. Use search_web for prices (include AUD). After 2-3 searches, write your answer. Never repeat a search. Respond with JSON only.`;
+
+// ─── Main loop ────────────────────────────────────────────────────────────────
 
 export async function runComparisonAgent(
   message: string,
@@ -143,128 +99,97 @@ export async function runComparisonAgent(
 ): Promise<{ answer: string; steps: AgentStep[] }> {
   send({ type: "status", text: "🤔 Planning research strategy..." });
 
-  const messages: Groq.Chat.ChatCompletionMessageParam[] = [
-    {
-      role: "system",
-      content:
-        systemPrompt +
-        memorySummary +
-        `\n\nYou have three tools available: search_knowledge_base, search_web, and fetch_url.
-
-Use them to research before answering. Call search_knowledge_base first, then search_web for current prices or specs. When you have enough information, stop calling tools and write your answer.`,
-    },
-    {
-      role: "user",
-      content: message,
-    },
+  const researchMessages: { role: "user" | "assistant"; content: string }[] = [
+    { role: "user", content: `Research this question: ${message}` },
   ];
 
-  let steps = 0;
-  let finalAnswer = "";
-  let toolFailures = 0;
   const agentSteps: AgentStep[] = [];
+  let researchSummary = "";
 
-  while (steps < MAX_STEPS) {
-    steps++;
-    send({ type: "status", text: `Step ${steps}/${MAX_STEPS}...` });
+  for (let step = 0; step < MAX_STEPS; step++) {
+    send({ type: "status", text: `Research step ${step + 1}...` });
 
-    let response;
+    let raw = "";
     try {
-      response = await groq.chat.completions.create({
+      const res = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
-        messages,
-        tools: TOOLS,
-        tool_choice: toolFailures >= 1 ? "none" : "auto", // disable tools after a failure
-        max_tokens: toolFailures >= 1 ? 2000 : 1000,
-        temperature: 0.3,
+        messages: [{ role: "system", content: PLANNER_SYSTEM }, ...researchMessages],
+        max_tokens: 400,
+        temperature: 0.1,
       });
-    } catch (err: unknown) {
-      // Groq returns 400 tool_use_failed when it can't form a valid tool call
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("tool_use_failed") || msg.includes("400")) {
-        toolFailures++;
-        console.log("[agentLoop] tool_use_failed on step", steps, "— switching to direct answer");
-        agentSteps.push({
-          step: agentSteps.length + 1,
-          tool: "direct_answer",
-          input: "(tool call failed, answering from training knowledge)",
-          result_summary: msg.slice(0, 200),
-        });
-        send({ type: "status", text: "Switching to direct answer mode..." });
-        if (messages[messages.length - 1]?.role === "assistant") {
-          messages.pop();
-        }
-        messages.push({
-          role: "user",
-          content: "Based on what you know, write a complete, well-structured answer to the original question.",
-        });
-        continue;
-      }
-      throw err;
-    }
-
-    const choice = response.choices[0];
-    const assistantMsg = choice.message;
-    messages.push(assistantMsg);
-
-    // No tool calls — LLM decided to answer directly
-    if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
-      finalAnswer = assistantMsg.content || "";
+      raw = res.choices[0].message.content || "";
+    } catch (e) {
+      console.log("[agentLoop] planner error:", e);
       break;
     }
 
-    // Execute each tool call
-    for (const toolCall of assistantMsg.tool_calls) {
-      const toolName = toolCall.function.name;
-      let toolArgs: Record<string, string> = {};
-      try {
-        toolArgs = JSON.parse(toolCall.function.arguments);
-      } catch {
-        // Bad JSON arguments — skip this tool call, note failure
-        toolFailures++;
-        messages.push({
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: "Error: could not parse tool arguments. Please answer directly.",
-        });
-        continue;
-      }
+    console.log("[agentLoop] step", step + 1, ":", raw.slice(0, 150));
+    const decision = parseDecision(raw);
 
-      const result = await executeTool(toolName, toolArgs, send);
-
-      // Record this step
-      agentSteps.push({
-        step: agentSteps.length + 1,
-        tool: toolName,
-        input: toolArgs.query || toolArgs.url || JSON.stringify(toolArgs),
-        result_summary: result.slice(0, 200) + (result.length > 200 ? "…" : ""),
-      });
-
-      messages.push({
-        role: "tool",
-        tool_call_id: toolCall.id,
-        content: result,
-      });
+    if (!decision) {
+      console.log("[agentLoop] could not parse decision");
+      break;
     }
+
+    if (decision.action === "answer") {
+      researchSummary = decision.text;
+      break;
+    }
+
+    let toolResult = "";
+    let toolInput = "";
+
+    if (decision.action === "search_web") {
+      toolInput = decision.query;
+      toolResult = await searchWeb(decision.query, send);
+    } else if (decision.action === "search_knowledge_base") {
+      toolInput = decision.query;
+      toolResult = await searchKnowledgeBase(decision.query, send);
+    } else if (decision.action === "fetch_url") {
+      toolInput = decision.url;
+      toolResult = await fetchUrl(decision.url, send);
+    }
+
+    agentSteps.push({
+      step: agentSteps.length + 1,
+      tool: decision.action,
+      input: toolInput,
+      result_summary: toolResult.slice(0, 200) + (toolResult.length > 200 ? "…" : ""),
+    });
+
+    researchMessages.push({ role: "assistant", content: raw });
+    researchMessages.push({
+      role: "user",
+      content: `Tool result:\n${toolResult.slice(0, 2000)}\n\nContinue researching or write your final answer as JSON.`,
+    });
   }
 
-  // If we hit the step limit or never got a final answer, force one without tools
+  // Synthesise final answer using the agent's full system prompt
+  let finalAnswer = researchSummary;
+
   if (!finalAnswer) {
     send({ type: "status", text: "Synthesising findings..." });
-    messages.push({
-      role: "user",
-      content: "You have gathered enough information. Now write your complete, well-structured answer based on everything you've found.",
-    });
 
-    const finalResponse = await groq.chat.completions.create({
+    const researchContext = researchMessages
+      .filter(m => m.role === "user" && m.content.startsWith("Tool result:"))
+      .map((m, i) => `[Research ${i + 1}]\n${m.content.replace("Tool result:\n", "").replace(/\n\nContinue.*$/, "")}`)
+      .join("\n\n---\n\n");
+
+    const synthRes = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      messages,
+      messages: [
+        { role: "system", content: systemPrompt + memorySummary },
+        {
+          role: "user",
+          content: researchContext
+            ? `[RESEARCH GATHERED]\n${researchContext}\n\n---\n[QUESTION]\n${message}`
+            : message,
+        },
+      ],
       max_tokens: 2000,
       temperature: 0.7,
-      stream: false,
     });
-
-    finalAnswer = finalResponse.choices[0].message.content || "";
+    finalAnswer = synthRes.choices[0].message.content || "";
   }
 
   return { answer: finalAnswer, steps: agentSteps };
