@@ -168,31 +168,23 @@ export async function POST(req: NextRequest) {
             max_tokens: 2000,
             temperature: 0.7,
             stream: true,
-            stream_options: { include_usage: true },
           });
 
           let fullResponse = "";
-          let actualTokens = 0;
           for await (const chunk of groqStream) {
             const text = chunk.choices[0]?.delta?.content || "";
             if (text) {
               fullResponse += text;
               send({ type: "text", text });
             }
-            // Groq sends usage in the final chunk
-            if (chunk.usage) {
-              actualTokens = chunk.usage.prompt_tokens + chunk.usage.completion_tokens;
-            }
           }
 
           // Step 9: Save clean Q&A to memory + track token usage
           const responseTimeMs = Date.now() - startTime;
-          const tokensEst = actualTokens > 0
-            ? actualTokens
-            : estimateTokens(userMessage + systemWithMemory + fullResponse);
+          const tokensEst = estimateTokens(userMessage + systemWithMemory + fullResponse);
 
           // Send token count to client for session display
-          send({ type: "tokens", count: tokensEst, exact: actualTokens > 0 });
+          send({ type: "tokens", count: tokensEst, exact: false });
 
           if (sessionId && isSupabaseConfigured()) {
             const meta: MessageMeta = {
