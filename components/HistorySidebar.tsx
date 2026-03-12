@@ -55,7 +55,12 @@ function SessionRow({ session, isCurrent, isLoading, isDark, onLoad, onDelete }:
     <button
       onClick={isLoading ? undefined : onLoad}
       disabled={isLoading}
-      {...lp}
+      onMouseDown={lp.onMouseDown}
+      onMouseUp={lp.onMouseUp}
+      onMouseLeave={lp.onMouseLeave}
+      onTouchStart={lp.onTouchStart}
+      onTouchEnd={lp.onTouchEnd}
+      onTouchMove={lp.onTouchMove}
       style={{
         width: "100%", textAlign: "left", padding: "0.6rem 1.25rem",
         background: isCurrent ? (isDark ? "rgba(200,169,110,0.08)" : "rgba(176,136,64,0.1)") : "transparent",

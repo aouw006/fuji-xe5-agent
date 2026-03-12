@@ -16,11 +16,6 @@ export function useLongPress(onLongPress: () => void, delay = 600) {
     if (timerRef.current) clearTimeout(timerRef.current);
   }, []);
 
-  // Prevent the normal click firing after a long press
-  const handleClick = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    if (fired.current) e.stopPropagation();
-  }, []);
-
   return {
     onMouseDown: start,
     onMouseUp: cancel,
@@ -28,6 +23,6 @@ export function useLongPress(onLongPress: () => void, delay = 600) {
     onTouchStart: start,
     onTouchEnd: cancel,
     onTouchMove: cancel,
-    onClick: handleClick,
+    // No onClick — callers provide their own and guard with fired.current if needed
   };
 }
