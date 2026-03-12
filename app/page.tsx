@@ -77,6 +77,15 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
     </svg>
   ),
+  "Compare & Pick": (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="3" x2="12" y2="21"/>
+      <path d="M3 9l4-4 4 4"/>
+      <path d="M17 15l4 4-4 4" transform="translate(0,-4)"/>
+      <line x1="7" y1="5" x2="7" y2="15"/>
+      <line x1="17" y1="9" x2="17" y2="19"/>
+    </svg>
+  ),
 };
 
 const CATEGORIES = [
@@ -86,6 +95,7 @@ const CATEGORIES = [
   { label: "Gear & Lenses", query: "best XF lenses and accessories for Fujifilm X-E5" },
   { label: "Community Tips", query: "Fujifilm X-E5 hidden tips tricks community recommendations reddit" },
   { label: "What's New", query: "Fujifilm X-E5 latest news firmware update new recipes accessories 2025" },
+  { label: "Compare & Pick", query: "compare best XF lenses for Fujifilm X-E5 which should I buy" },
 ];
 
 const QUICK_PROMPTS = [
@@ -112,6 +122,17 @@ export default function Home() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [fontSize, setFontSize] = useState(100);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("xe5_fontsize");
+    if (saved) setFontSize(Number(saved));
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${fontSize}%`;
+    localStorage.setItem("xe5_fontsize", String(fontSize));
+  }, [fontSize]);
   const [isDark, setIsDark] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -282,52 +303,56 @@ export default function Home() {
 
       <HistorySidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLoadSession={loadSession} currentSessionId={sessionId} isDark={isDark} onCompare={() => setCompareOpen(true)} />
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} isDark={isDark} />
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} isDark={isDark} />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} isDark={isDark} fontSize={fontSize} onFontSizeChange={setFontSize} />
       <RecipeComparison open={compareOpen} onClose={() => setCompareOpen(false)} isDark={isDark} />
 
       {/* Header */}
-      <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${t.border}`, background: t.bgHeader, backdropFilter: "blur(16px)", padding: "0.75rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", transition: "background 0.3s, border-color 0.3s" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+      <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${t.border}`, background: t.bgHeader, backdropFilter: "blur(16px)", padding: "0.6rem 1rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem", transition: "background 0.3s, border-color 0.3s" }}>
+        {/* Left: menu + logo */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0, flex: 1 }}>
           <button onClick={() => setSidebarOpen(true)} style={headerBtn} title="History"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
             ☰
           </button>
-          <div style={{ width: "30px", height: "30px", borderRadius: "50%", border: `1.5px solid ${t.gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: t.gold, letterSpacing: "0.05em", background: t.goldBg, fontFamily: "'DM Mono', monospace", flexShrink: 0 }}>XE5</div>
-          <div>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.9rem", fontWeight: 700, letterSpacing: "0.04em" }}>X-E5 Research Agent</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#4caf7d", animation: "blink 2s ease-in-out infinite" }} />
-              <span style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.12em", textTransform: "uppercase" }}>5 agents · Groq · Tavily · {APP_VERSION}</span>
+          <div style={{ width: "28px", height: "28px", borderRadius: "50%", border: `1.5px solid ${t.gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.48rem", color: t.gold, background: t.goldBg, fontFamily: "'DM Mono', monospace", flexShrink: 0 }}>XE5</div>
+          {/* Title — hidden on very small screens */}
+          <div style={{ minWidth: 0, overflow: "hidden" }}>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.85rem", fontWeight: 700, letterSpacing: "0.03em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>X-E5 Agent</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+              <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#4caf7d", animation: "blink 2s ease-in-out infinite", flexShrink: 0 }} />
+              <span style={{ fontSize: "0.5rem", color: t.textFaint, letterSpacing: "0.1em", textTransform: "uppercase", whiteSpace: "nowrap" }}>{APP_VERSION}</span>
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-          <TokenBar />
-          {/* Settings button */}
-          <button onClick={() => setSettingsOpen(true)} style={headerBtn} title="Settings"
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
-            ⚙
-          </button>
-          {/* About button */}
-          <button onClick={() => setAboutOpen(true)} style={headerBtn} title="About this app"
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
-            ?
-          </button>
-          {/* Theme toggle */}
+
+        {/* Right: actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexShrink: 0 }}>
+          {/* Token bar — hidden on mobile, shown md+ */}
+          <div className="hide-mobile">
+            <TokenBar />
+          </div>
           <button onClick={toggleTheme} style={headerBtn} title={isDark ? "Switch to light mode" : "Switch to dark mode"}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
             {isDark ? "☀" : "☾"}
           </button>
+          <button onClick={() => setAboutOpen(true)} style={headerBtn} title="About"
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
+            ?
+          </button>
+          <button onClick={() => setSettingsOpen(true)} style={headerBtn} title="Settings"
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
+            ⚙
+          </button>
           {started && (
             <button onClick={reset}
-              style={{ background: "transparent", border: `1px solid ${t.borderMid}`, color: t.textFaint, padding: "0.3rem 0.7rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.12em", textTransform: "uppercase", transition: "all 0.2s", whiteSpace: "nowrap" }}
+              style={{ background: "transparent", border: `1px solid ${t.borderMid}`, color: t.textFaint, padding: "0.3rem 0.55rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.58rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s", whiteSpace: "nowrap" }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.borderMid; e.currentTarget.style.color = t.textFaint; }}>
-              ↺ New
+              ↺
             </button>
           )}
         </div>

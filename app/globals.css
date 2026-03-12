@@ -31,3 +31,12 @@ textarea:focus { outline: none; }
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ─── Mobile responsive ─────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .hide-mobile { display: none !important; }
+}
+
+@media (min-width: 481px) {
+  .show-mobile-only { display: none !important; }
+}

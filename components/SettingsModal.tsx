@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import TokenBar from "./TokenBar";
 import { darkTheme, lightTheme } from "@/lib/theme";
 
 interface AgentSource {
@@ -14,6 +15,8 @@ interface Props {
   open: boolean;
   onClose: () => void;
   isDark: boolean;
+  fontSize: number;
+  onFontSizeChange: (size: number) => void;
 }
 
 const AGENTS = [
@@ -24,7 +27,7 @@ const AGENTS = [
   { id: "community", icon: "🌐", name: "Community Agent", defaultSources: ["reddit.com", "fujixweekly.com", "youtube.com"] },
 ];
 
-export default function SettingsModal({ open, onClose, isDark }: Props) {
+export default function SettingsModal({ open, onClose, isDark, fontSize, onFontSizeChange }: Props) {
   const t = isDark ? darkTheme : lightTheme;
   const [sources, setSources] = useState<AgentSource[]>([]);
   const [loading, setLoading] = useState(false);
@@ -138,6 +141,42 @@ export default function SettingsModal({ open, onClose, isDark }: Props) {
             onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; }}>
             ✕
           </button>
+        </div>
+
+        {/* Font size section */}
+        <div style={{ padding: "0.85rem 1.5rem", borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
+          <div style={{ flexShrink: 0 }}>
+            <div style={{ fontSize: "0.62rem", fontWeight: 600, color: t.text, marginBottom: "0.1rem" }}>Text Size</div>
+            <div style={{ fontSize: "0.58rem", color: t.textFaint }}>Applies across the whole app</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flex: 1, minWidth: "200px" }}>
+            <span style={{ fontSize: "0.6rem", color: t.textVeryFaint, fontFamily: "'DM Mono', monospace", width: "24px" }}>A</span>
+            <input
+              type="range"
+              min={90}
+              max={130}
+              step={5}
+              value={fontSize}
+              onChange={e => onFontSizeChange(Number(e.target.value))}
+              style={{ flex: 1, accentColor: t.gold, cursor: "pointer", height: "3px" }}
+            />
+            <span style={{ fontSize: "0.85rem", color: t.textVeryFaint, fontFamily: "'DM Mono', monospace", width: "24px", textAlign: "right" }}>A</span>
+            <span style={{ fontSize: "0.65rem", color: t.gold, fontFamily: "'DM Mono', monospace", width: "36px", textAlign: "right" }}>{fontSize}%</span>
+            {fontSize !== 100 && (
+              <button onClick={() => onFontSizeChange(100)}
+                style={{ background: "transparent", border: `1px solid ${t.borderCard}`, color: t.textVeryFaint, padding: "0.15rem 0.4rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.55rem", letterSpacing: "0.08em", whiteSpace: "nowrap", transition: "all 0.2s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderCard; e.currentTarget.style.color = t.textVeryFaint; }}>
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Token bar — mobile only */}
+        <div className="show-mobile-only" style={{ padding: "0.75rem 1.5rem", borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: "0.6rem", color: t.textFaint, letterSpacing: "0.1em", textTransform: "uppercase" }}>Daily Token Usage</div>
+          <TokenBar />
         </div>
 
         <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
