@@ -17,12 +17,16 @@ const MAX_STEPS = 10;
 // ─── Tools ────────────────────────────────────────────────────────────────────
 
 async function searchWeb(query: string, send: (d: object) => void): Promise<string> {
-  send({ type: "status", text: `🔍 Searching: "${query}"` });
+  // Always inject Fujifilm context so generic terms like "recipes" don't hit food results
+  const fujiQuery = /fuji|x-e5|film simulation|xf lens|fujifilm/i.test(query)
+    ? query
+    : `Fujifilm X-E5 ${query}`;
+  send({ type: "status", text: `🔍 Searching: "${fujiQuery}"` });
   try {
     const res = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_key: TAVILY_KEY, query, max_results: 5 }),
+      body: JSON.stringify({ api_key: TAVILY_KEY, query: fujiQuery, max_results: 5 }),
     });
     const data = await res.json();
     return (data.results || [])
@@ -113,7 +117,13 @@ function summarise(text: string, len = 220): string {
 
 
 
-const PLANNER_SYSTEM = `You are a research agent for Fujifilm X-E5 photography. You research questions step by step, evaluating what you find before deciding what to do next.
+const PLANNER_SYSTEM = `You are a research agent for the Fujifilm X-E5 mirrorless camera. You help photographers compare film simulation recipes, lenses, settings, and accessories. 
+
+IMPORTANT DOMAIN CONTEXT:
+- "recipes" ALWAYS means Fujifilm film simulation recipes (camera color profiles), NEVER food
+- "film recipes" = Fujifilm in-camera color grading presets like Classic Chrome, Eterna, etc.
+- All searches are about photography: cameras, lenses, film simulations, settings, accessories
+- Always include "Fujifilm" or "film simulation" in your search queries to avoid off-topic results
 
 Each response must be a single JSON object. Available actions:
 
