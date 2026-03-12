@@ -241,6 +241,15 @@ export default function Home() {
               pendingFollowups = data.suggestions || [];
             } else if (data.type === "reflection") {
               pendingReflection = { score: data.score, critique: data.critique };
+              // Also update the last assistant message in case done already fired
+              setMessages(prev => {
+                const lastAssistant = [...prev].reverse().findIndex(m => m.role === "assistant");
+                if (lastAssistant === -1) return prev;
+                const idx = prev.length - 1 - lastAssistant;
+                const updated = [...prev];
+                updated[idx] = { ...updated[idx], reflectionScore: data.score, reflectionCritique: data.critique };
+                return updated;
+              });
             } else if (data.type === "tokens") {
               setSessionTokens(prev => prev + (data.count || 0));
               if (data.exact) setTokensExact(true);

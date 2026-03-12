@@ -256,6 +256,7 @@ Return ONLY a JSON object, no other text:
             });
 
             const rawRef = reflectionRes.choices[0]?.message?.content || "{}";
+            console.log("[reflection] raw:", rawRef.slice(0, 200));
             const cleanRef = rawRef.replace(/```json|```/g, "").trim();
             const reflection = JSON.parse(cleanRef);
 
