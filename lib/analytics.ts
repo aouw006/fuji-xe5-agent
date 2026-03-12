@@ -105,9 +105,23 @@ export async function getAllSessions(): Promise<HistorySession[]> {
 export async function getSessionMessages(sessionId: string) {
   try {
     const data = await supabaseFetch(
-      `/conversations?session_id=eq.${sessionId}&order=created_at.asc&select=role,content`
+      `/conversations?session_id=eq.${sessionId}&order=created_at.asc&select=role,content,agent_id,tokens_used,response_time_ms,prompt_sent,sources_used,agent_steps,created_at`
     );
-    return Array.isArray(data) ? data : [];
+    if (!Array.isArray(data)) return [];
+    return data.map((r: {
+      role: string; content: string; agent_id?: string; tokens_used?: number;
+      response_time_ms?: number; prompt_sent?: string; sources_used?: unknown; agent_steps?: unknown; created_at?: string;
+    }) => ({
+      role: r.role,
+      content: r.content,
+      agent_id: r.agent_id || "",
+      tokens_used: r.tokens_used || 0,
+      response_time_ms: r.response_time_ms || 0,
+      prompt_sent: r.prompt_sent || "",
+      sources_used: (() => { try { return typeof r.sources_used === "string" ? JSON.parse(r.sources_used) : (r.sources_used || []); } catch { return []; } })(),
+      agent_steps: (() => { try { return typeof r.agent_steps === "string" ? JSON.parse(r.agent_steps) : (r.agent_steps || []); } catch { return []; } })(),
+      created_at: r.created_at || "",
+    }));
   } catch {
     return [];
   }
@@ -218,7 +232,7 @@ export async function getDashboardData() {
 
     const [tokenRows, convRows, recipeRows] = await Promise.all([
       supabaseFetch(`/token_usage?date=gte.${thirtyDaysAgo}&select=tokens_used,date,agent_id&order=date.asc`),
-      supabaseFetch(`/conversations?select=agent_id,tokens_used,response_time_ms,prompt_sent,sources_used,content,role,created_at,session_id&order=created_at.desc&limit=200`),
+      supabaseFetch(`/conversations?select=agent_id,tokens_used,response_time_ms,prompt_sent,sources_used,agent_steps,content,role,created_at,session_id&order=created_at.desc&limit=200`),
       supabaseFetch(`/saved_recipes?select=name,mood,best_for,settings,created_at&order=created_at.desc`),
     ]);
 
@@ -272,6 +286,7 @@ export async function getDashboardData() {
       agent_id: string;
       prompt_sent: string;
       sources_used: { title: string; url: string }[];
+      agent_steps: { step: number; tool: string; input: string; result_summary: string }[];
       tokens_used: number;
       response_time_ms: number;
       created_at: string;
@@ -293,6 +308,10 @@ export async function getDashboardData() {
             prompt_sent: r.prompt_sent || "",
             sources_used: (() => {
               try { return typeof r.sources_used === "string" ? JSON.parse(r.sources_used) : (r.sources_used || []); }
+              catch { return []; }
+            })(),
+            agent_steps: (() => {
+              try { return typeof r.agent_steps === "string" ? JSON.parse(r.agent_steps) : (r.agent_steps || []); }
               catch { return []; }
             })(),
             tokens_used: r.tokens_used || 0,

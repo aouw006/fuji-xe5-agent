@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
                 ).join("\n\n") + "\n[END PREVIOUS CONTEXT]\n"
               : "";
 
-            const fullResponse = await runComparisonAgent(message, agent.systemPrompt, memorySummary, send);
+            const { answer: fullResponse, steps: agentSteps } = await runComparisonAgent(message, agent.systemPrompt, memorySummary, send);
 
             // Stream the final answer word by word for a natural feel
             const words = fullResponse.split(" ");
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
             // Save to memory
             if (sessionId && isSupabaseConfigured()) {
-              const meta: MessageMeta = { agent_id: agent.id, tokens_used: estimateTokens(message + fullResponse) };
+              const meta: MessageMeta = { agent_id: agent.id, tokens_used: estimateTokens(message + fullResponse), agent_steps: agentSteps };
               await saveMessage(sessionId, "user", message, meta);
               await saveMessage(sessionId, "assistant", fullResponse, meta);
               await trackTokens(sessionId, message, fullResponse, agent.id);

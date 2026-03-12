@@ -41,6 +41,7 @@ interface DashboardData {
     agent_id: string;
     prompt_sent: string;
     sources_used: { title: string; url: string }[];
+    agent_steps: { step: number; tool: string; input: string; result_summary: string }[];
     tokens_used: number;
     response_time_ms: number;
     created_at: string;
@@ -412,6 +413,33 @@ export default function Dashboard() {
                               <div style={{ color: t.text, marginBottom: "0.1rem" }}>{s.title}</div>
                               <div style={{ fontSize: "0.55rem", color: t.textVeryFaint }}>{s.url}</div>
                             </a>
+                          ))}
+                        </div>
+                      </Card>
+                    )}
+
+                    {selectedPrompt.agent_steps?.length > 0 && (
+                      <Card t={t} title={`Agentic research log — ${selectedPrompt.agent_steps.length} steps`}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+                          {selectedPrompt.agent_steps.map((s, i) => (
+                            <div key={i} style={{ display: "flex", gap: "0.75rem", padding: "0.6rem 0", borderBottom: i < selectedPrompt.agent_steps.length - 1 ? `1px solid ${t.border}` : "none" }}>
+                              <div style={{ width: "18px", height: "18px", borderRadius: "50%", border: `1px solid ${isDark ? "rgba(200,169,110,0.3)" : "rgba(176,136,64,0.4)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: t.gold, flexShrink: 0, fontFamily: "DM Mono, monospace" }}>
+                                {s.step}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.2rem" }}>
+                                  <span style={{ fontSize: "0.55rem", color: t.gold, border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.3)"}`, borderRadius: "2px", padding: "0.05rem 0.3rem", fontFamily: "DM Mono, monospace", textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0 }}>
+                                    {s.tool.replace(/_/g, " ")}
+                                  </span>
+                                  <span style={{ fontSize: "0.65rem", color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {s.input}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: "0.62rem", color: t.textMuted, lineHeight: 1.5, fontFamily: "DM Mono, monospace" }}>
+                                  {s.result_summary}
+                                </div>
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </Card>

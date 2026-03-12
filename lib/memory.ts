@@ -57,12 +57,20 @@ export async function getSession(sessionId: string): Promise<ConversationMessage
   }
 }
 
+export interface AgentStep {
+  step: number;
+  tool: string;
+  input: string;
+  result_summary: string; // short summary, not full content
+}
+
 export interface MessageMeta {
   agent_id?: string;
   prompt_sent?: string;
   sources_used?: { title: string; url: string }[];
   tokens_used?: number;
   response_time_ms?: number;
+  agent_steps?: AgentStep[];
 }
 
 export async function saveMessage(
@@ -84,7 +92,7 @@ export async function saveMessage(
         ...(meta?.prompt_sent && { prompt_sent: meta.prompt_sent }),
         ...(meta?.sources_used && { sources_used: JSON.stringify(meta.sources_used) }),
         ...(meta?.tokens_used && { tokens_used: meta.tokens_used }),
-        ...(meta?.response_time_ms && { response_time_ms: meta.response_time_ms }),
+        ...(meta?.agent_steps && { agent_steps: JSON.stringify(meta.agent_steps) }),
       }),
     });
   } catch {

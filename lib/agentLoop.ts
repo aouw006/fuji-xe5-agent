@@ -13,6 +13,7 @@
 
 import Groq from "groq-sdk";
 import { retrieveChunks } from "@/lib/rag";
+import type { AgentStep } from "@/lib/memory";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const TAVILY_KEY = process.env.TAVILY_API_KEY!;
@@ -139,7 +140,7 @@ export async function runComparisonAgent(
   systemPrompt: string,
   memorySummary: string,
   send: (data: object) => void
-): Promise<string> {
+): Promise<{ answer: string; steps: AgentStep[] }> {
   send({ type: "status", text: "🤔 Planning research strategy..." });
 
   const messages: Groq.Chat.ChatCompletionMessageParam[] = [
@@ -170,6 +171,7 @@ Always call final_answer when ready — never just stop tool calling.`,
   let steps = 0;
   let finalAnswer = "";
   let toolFailures = 0;
+  const agentSteps: AgentStep[] = [];
 
   while (steps < MAX_STEPS) {
     steps++;
@@ -233,6 +235,15 @@ Always call final_answer when ready — never just stop tool calling.`,
       }
 
       const result = await executeTool(toolName, toolArgs, send);
+
+      // Record this step
+      agentSteps.push({
+        step: agentSteps.length + 1,
+        tool: toolName,
+        input: toolArgs.query || toolArgs.url || JSON.stringify(toolArgs),
+        result_summary: result.slice(0, 200) + (result.length > 200 ? "…" : ""),
+      });
+
       messages.push({
         role: "tool",
         tool_call_id: toolCall.id,
@@ -260,5 +271,5 @@ Always call final_answer when ready — never just stop tool calling.`,
     finalAnswer = finalResponse.choices[0].message.content || "";
   }
 
-  return finalAnswer;
+  return { answer: finalAnswer, steps: agentSteps };
 }
