@@ -5,6 +5,7 @@ import { multiRoundSearch } from "@/lib/search";
 import { getSession, saveMessage, isSupabaseConfigured } from "@/lib/memory";
 import type { MessageMeta } from "@/lib/memory";
 import { trackTokens, estimateTokens, getAgentSources } from "@/lib/analytics";
+import { retrieveChunks, formatRagContext } from "@/lib/rag";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -87,13 +88,22 @@ export async function POST(req: NextRequest) {
               "\n[END PREVIOUS CONTEXT]\n"
             : "";
 
+          // Step 6b: RAG retrieval — fetch relevant chunks from knowledge base
+          const ragChunks = await retrieveChunks(message, agent.id, 5);
+          const ragContext = formatRagContext(ragChunks);
+          if (ragChunks.length > 0) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "status", message: `Found ${ragChunks.length} relevant knowledge base chunks` })}
+
+`));
+          }
+
           // Step 6: Build the user message
           const userMessage = searchContext
             ? `[LIVE SEARCH RESULTS - ${new Date().toLocaleDateString()}]\n\n${searchContext}\n\n---\n[USER QUESTION]\n${message}`
             : message;
 
           // Step 7: Build system prompt with memory injected
-          const systemWithMemory = agent.systemPrompt + memorySummary +
+          const systemWithMemory = agent.systemPrompt + ragContext + memorySummary +
             "\n\nIMPORTANT: If the user asks about previous answers or recipes, refer to the PREVIOUS CONVERSATION CONTEXT above. Always give complete, detailed answers. FRESHNESS: Do not repeat information, recipes, or advice you have already given in this conversation — if the user is asking a similar question again, find different examples, different sources, or a different angle on the topic.";
 
           // Step 8: Stream Groq response — clean messages, no history contamination
