@@ -21,14 +21,25 @@ async function supabaseFetch(path: string, options: RequestInit = {}) {
 
 // Rough token estimator: ~1 token per 4 chars
 export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
+  // Groq's tokeniser (tiktoken) averages ~3.5 chars/token for English prose,
+  // closer to ~3 for code/markdown with lots of short tokens.
+  // Using 3.5 as a conservative estimate that matches Groq logs more closely.
+  return Math.ceil(text.length / 3.5);
+}
+
+export function estimateTokensSplit(inputText: string, outputText: string): number {
+  // Input and output counted separately — output tokens are weighted the same
+  // but keeping them separate lets us log them properly if needed.
+  const inputTokens = Math.ceil(inputText.length / 3.5);
+  const outputTokens = Math.ceil(outputText.length / 3.5);
+  return inputTokens + outputTokens;
 }
 
 // ─── Token Usage ──────────────────────────────────────────────────────────────
 
 export async function trackTokens(sessionId: string, inputText: string, outputText: string, agentId?: string): Promise<void> {
   try {
-    const tokens = estimateTokens(inputText + outputText);
+    const tokens = estimateTokensSplit(inputText, outputText);
     const today = new Date().toISOString().split("T")[0];
     await supabaseFetch("/token_usage", {
       method: "POST",
