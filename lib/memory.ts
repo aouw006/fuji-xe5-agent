@@ -95,6 +95,7 @@ export async function saveMessage(
         ...(meta?.agent_steps && { agent_steps: JSON.stringify(meta.agent_steps) }),
       }),
     });
+    console.log("[saveMessage] saved", role, "agent_steps length:", meta?.agent_steps?.length ?? 0);
   } catch {
     // Silently fail — memory is optional
   }

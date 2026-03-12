@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
 
             // Save to memory
             if (sessionId && isSupabaseConfigured()) {
+              console.log("[agentic] steps to save:", JSON.stringify(agentSteps));
               const meta: MessageMeta = { agent_id: agent.id, tokens_used: estimateTokens(message + fullResponse), agent_steps: agentSteps };
               await saveMessage(sessionId, "user", message, meta);
               await saveMessage(sessionId, "assistant", fullResponse, meta);
