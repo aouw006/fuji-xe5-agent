@@ -408,7 +408,7 @@ export default function Dashboard() {
                             <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
                               style={{ display: "block", fontSize: "0.65rem", color: t.textMuted, textDecoration: "none", padding: "0.4rem 0.5rem", background: t.bg, border: `1px solid ${t.border}`, borderRadius: "2px", lineHeight: 1.4 }}
                               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = t.textFaint; (e.currentTarget as HTMLElement).style.color = t.text; }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = t.border; (e.currentTarget as HTMLElement).style.color = TEXT_DIM; }}>
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = t.border; (e.currentTarget as HTMLElement).style.color = t.textMuted; }}>
                               <div style={{ color: t.text, marginBottom: "0.1rem" }}>{s.title}</div>
                               <div style={{ fontSize: "0.55rem", color: t.textVeryFaint }}>{s.url}</div>
                             </a>
