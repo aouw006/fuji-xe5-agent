@@ -14,9 +14,10 @@ interface Props {
   onClose: () => void;
   sessionId: string;
   isDark: boolean;
+  onCompare: () => void;
 }
 
-export default function RecipeGallery({ open, onClose, sessionId, isDark }: Props) {
+export default function RecipeGallery({ open, onClose, sessionId, isDark, onCompare }: Props) {
   const t = isDark ? darkTheme : lightTheme;
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [loading, setLoading] = useState(false);
@@ -79,12 +80,20 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark }: Prop
               {recipes.length} saved {recipes.length === 1 ? "recipe" : "recipes"}
             </div>
           </div>
-          <button onClick={onClose}
-            style={{ background: "transparent", border: `1px solid ${t.borderSidebar}`, color: t.textFaint, width: "32px", height: "32px", borderRadius: "2px", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; }}>
-            ✕
-          </button>
+<div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button onClick={onCompare}
+              style={{ background: "transparent", border: `1px solid ${t.borderSidebar}`, color: t.textFaint, height: "32px", padding: "0 0.65rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.62rem", letterSpacing: "0.08em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "0.3rem", transition: "all 0.2s", whiteSpace: "nowrap" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; }}>
+              ⇄ Compare
+            </button>
+            <button onClick={onClose}
+              style={{ background: "transparent", border: `1px solid ${t.borderSidebar}`, color: t.textFaint, width: "32px", height: "32px", borderRadius: "2px", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = t.borderSidebar; e.currentTarget.style.color = t.textFaint; }}>
+              ✕
+            </button>
+          </div>
         </div>
 
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>

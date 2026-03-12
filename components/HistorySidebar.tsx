@@ -17,9 +17,10 @@ interface Props {
   onLoadSession: (sessionId: string, messages: { role: string; content: string }[]) => void;
   currentSessionId: string;
   isDark: boolean;
+  onCompare: () => void;
 }
 
-export default function HistorySidebar({ open, onClose, onLoadSession, currentSessionId, isDark }: Props) {
+export default function HistorySidebar({ open, onClose, onLoadSession, currentSessionId, isDark, onCompare }: Props) {
   const t = isDark ? darkTheme : lightTheme;
   const [sessions, setSessions] = useState<HistorySession[]>([]);
   const [loading, setLoading] = useState(false);
@@ -159,6 +160,7 @@ export default function HistorySidebar({ open, onClose, onLoadSession, currentSe
         onClose={() => setGalleryOpen(false)}
         sessionId={currentSessionId}
         isDark={isDark}
+        onCompare={() => { setGalleryOpen(false); onCompare(); }}
       />
     </>
   );

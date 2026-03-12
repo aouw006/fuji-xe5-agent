@@ -229,7 +229,7 @@ export default function Home() {
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E")`, backgroundSize: "256px", opacity: t.grain }} />
       <div style={{ position: "fixed", top: "-20%", left: "50%", transform: "translateX(-50%)", width: "700px", height: "500px", background: `radial-gradient(ellipse, ${t.gradientTop} 0%, transparent 70%)`, pointerEvents: "none", zIndex: 0 }} />
 
-      <HistorySidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLoadSession={loadSession} currentSessionId={sessionId} isDark={isDark} />
+      <HistorySidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLoadSession={loadSession} currentSessionId={sessionId} isDark={isDark} onCompare={() => setCompareOpen(true)} />
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} isDark={isDark} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} isDark={isDark} />
       <RecipeComparison open={compareOpen} onClose={() => setCompareOpen(false)} isDark={isDark} />
@@ -253,12 +253,6 @@ export default function Home() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
           <TokenBar />
-          {/* Compare recipes button */}
-          <button onClick={() => setCompareOpen(true)} style={headerBtn} title="Compare recipes"
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
-            ⇄
-          </button>
           {/* Settings button */}
           <button onClick={() => setSettingsOpen(true)} style={headerBtn} title="Settings"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
