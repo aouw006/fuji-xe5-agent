@@ -42,6 +42,8 @@ interface DashboardData {
     prompt_sent: string;
     sources_used: { title: string; url: string }[];
     agent_steps: { step: number; tool: string; input: string; reasoning: string; result_summary: string }[];
+    reflection_score?: number;
+    reflection_critique?: string;
     tokens_used: number;
     response_time_ms: number;
     created_at: string;
@@ -365,10 +367,21 @@ export default function Dashboard() {
                         }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.25rem" }}>
                           <span style={{ fontSize: "0.62rem", color: AGENT_COLORS[entry.agent_id] || t.textMuted }}>{AGENT_LABELS[entry.agent_id] || entry.agent_id}</span>
-                          <span style={{ fontSize: "0.55rem", color: t.textVeryFaint, fontFamily: "DM Mono, monospace" }}>
-                            {entry.tokens_used > 0 ? `${(entry.tokens_used / 1000).toFixed(1)}k tok` : ""}
-                            {entry.response_time_ms > 0 ? ` · ${(entry.response_time_ms / 1000).toFixed(1)}s` : ""}
-                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                            {entry.reflection_score !== undefined && (
+                              <span style={{
+                                fontSize: "0.5rem", padding: "0.05rem 0.3rem", borderRadius: "2px", fontFamily: "DM Mono, monospace",
+                                background: entry.reflection_score >= 8 ? "rgba(100,180,100,0.1)" : entry.reflection_score >= 6 ? "rgba(200,169,110,0.1)" : "rgba(200,100,100,0.1)",
+                                color: entry.reflection_score >= 8 ? "#7ec87e" : entry.reflection_score >= 6 ? t.gold : "#c87e7e",
+                              }}>
+                                {entry.reflection_score}/10
+                              </span>
+                            )}
+                            <span style={{ fontSize: "0.55rem", color: t.textVeryFaint, fontFamily: "DM Mono, monospace" }}>
+                              {entry.tokens_used > 0 ? `${(entry.tokens_used / 1000).toFixed(1)}k tok` : ""}
+                              {entry.response_time_ms > 0 ? ` · ${(entry.response_time_ms / 1000).toFixed(1)}s` : ""}
+                            </span>
+                          </div>
                         </div>
                         <div style={{ fontSize: "0.7rem", color: t.text, lineHeight: 1.4 }}>{entry.query}</div>
                         <div style={{ fontSize: "0.55rem", color: t.textVeryFaint, marginTop: "0.2rem" }}>
@@ -474,6 +487,22 @@ export default function Dashboard() {
                       <Card t={t} title="System prompt sent to Groq">
                         <div style={{ fontSize: "0.62rem", color: t.textMuted, background: t.bg, border: `1px solid ${t.border}`, borderRadius: "3px", padding: "0.75rem", maxHeight: "300px", overflowY: "auto", lineHeight: 1.7, whiteSpace: "pre-wrap", fontFamily: "DM Mono, monospace" }}>
                           {selectedPrompt.prompt_sent}
+                        </div>
+                      </Card>
+                    )}
+
+                    {selectedPrompt.reflection_score !== undefined && (
+                      <Card t={t} title="Reflection — self-critique">
+                        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
+                          <div style={{
+                            fontSize: "2rem", fontWeight: 700, fontFamily: "Playfair Display, serif",
+                            color: selectedPrompt.reflection_score >= 8 ? "#7ec87e" : selectedPrompt.reflection_score >= 6 ? t.gold : "#c87e7e",
+                          }}>
+                            {selectedPrompt.reflection_score}<span style={{ fontSize: "0.9rem", color: t.textFaint }}>/10</span>
+                          </div>
+                          <div style={{ fontSize: "0.68rem", color: t.textMuted, lineHeight: 1.6, flex: 1 }}>
+                            {selectedPrompt.reflection_critique}
+                          </div>
                         </div>
                       </Card>
                     )}

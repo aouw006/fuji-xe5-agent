@@ -72,6 +72,8 @@ export interface MessageMeta {
   tokens_used?: number;
   response_time_ms?: number;
   agent_steps?: AgentStep[];
+  reflection_score?: number;
+  reflection_critique?: string;
 }
 
 export async function saveMessage(
@@ -94,6 +96,8 @@ export async function saveMessage(
         ...(meta?.sources_used && { sources_used: JSON.stringify(meta.sources_used) }),
         ...(meta?.tokens_used && { tokens_used: meta.tokens_used }),
         ...(meta?.agent_steps && { agent_steps: JSON.stringify(meta.agent_steps) }),
+        ...(meta?.reflection_score !== undefined && { reflection_score: meta.reflection_score }),
+        ...(meta?.reflection_critique && { reflection_critique: meta.reflection_critique }),
       }),
     });
     console.log("[saveMessage] saved", role, "agent_steps length:", meta?.agent_steps?.length ?? 0);
@@ -113,3 +117,24 @@ export async function clearSession(sessionId: string): Promise<void> {
 }
 
 export { isSupabaseConfigured };
+
+export async function updateReflection(
+  sessionId: string,
+  score: number,
+  critique: string
+): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  try {
+    // Find the most recent assistant message for this session and update it
+    await supabaseFetch(
+      `/conversations?session_id=eq.${sessionId}&role=eq.assistant&order=created_at.desc&limit=1`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ reflection_score: score, reflection_critique: critique }),
+        headers: { Prefer: "return=minimal" },
+      }
+    );
+  } catch (e) {
+    console.error("[updateReflection] failed:", e);
+  }
+}

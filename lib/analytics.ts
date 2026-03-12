@@ -117,12 +117,13 @@ export async function getAllSessions(): Promise<HistorySession[]> {
 export async function getSessionMessages(sessionId: string) {
   try {
     const data = await supabaseFetch(
-      `/conversations?session_id=eq.${sessionId}&order=created_at.asc&select=role,content,agent_id,tokens_used,response_time_ms,prompt_sent,sources_used,agent_steps,created_at`
+      `/conversations?session_id=eq.${sessionId}&order=created_at.asc&select=role,content,agent_id,tokens_used,response_time_ms,prompt_sent,sources_used,agent_steps,reflection_score,reflection_critique,created_at`
     );
     if (!Array.isArray(data)) return [];
     return data.map((r: {
       role: string; content: string; agent_id?: string; tokens_used?: number;
-      response_time_ms?: number; prompt_sent?: string; sources_used?: unknown; agent_steps?: unknown; created_at?: string;
+      response_time_ms?: number; prompt_sent?: string; sources_used?: unknown; agent_steps?: unknown;
+      reflection_score?: number; reflection_critique?: string; created_at?: string;
     }) => ({
       role: r.role,
       content: r.content,
@@ -132,6 +133,8 @@ export async function getSessionMessages(sessionId: string) {
       prompt_sent: r.prompt_sent || "",
       sources_used: (() => { try { return typeof r.sources_used === "string" ? JSON.parse(r.sources_used) : (r.sources_used || []); } catch { return []; } })(),
       agent_steps: (() => { try { return typeof r.agent_steps === "string" ? JSON.parse(r.agent_steps) : (r.agent_steps || []); } catch { return []; } })(),
+      reflection_score: r.reflection_score,
+      reflection_critique: r.reflection_critique || "",
       created_at: r.created_at || "",
     }));
   } catch {
@@ -244,7 +247,7 @@ export async function getDashboardData() {
 
     const [tokenRows, convRows, recipeRows] = await Promise.all([
       supabaseFetch(`/token_usage?date=gte.${thirtyDaysAgo}&select=tokens_used,date,agent_id&order=date.asc`),
-      supabaseFetch(`/conversations?select=agent_id,tokens_used,response_time_ms,prompt_sent,sources_used,agent_steps,content,role,created_at,session_id&order=created_at.desc&limit=200`),
+      supabaseFetch(`/conversations?select=agent_id,tokens_used,response_time_ms,prompt_sent,sources_used,agent_steps,reflection_score,reflection_critique,content,role,created_at,session_id&order=created_at.desc&limit=200`),
       supabaseFetch(`/saved_recipes?select=name,mood,best_for,settings,created_at&order=created_at.desc`),
     ]);
 
@@ -299,6 +302,8 @@ export async function getDashboardData() {
       prompt_sent: string;
       sources_used: { title: string; url: string }[];
       agent_steps: { step: number; tool: string; input: string; reasoning: string; result_summary: string }[];
+      reflection_score?: number;
+      reflection_critique?: string;
       tokens_used: number;
       response_time_ms: number;
       created_at: string;
@@ -326,6 +331,8 @@ export async function getDashboardData() {
               try { return typeof r.agent_steps === "string" ? JSON.parse(r.agent_steps) : (r.agent_steps || []); }
               catch { return []; }
             })(),
+            reflection_score: r.reflection_score,
+            reflection_critique: r.reflection_critique || "",
             tokens_used: r.tokens_used || 0,
             response_time_ms: r.response_time_ms || 0,
             created_at: r.created_at,

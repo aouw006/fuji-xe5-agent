@@ -74,3 +74,8 @@ BEGIN
   LIMIT match_count;
 END;
 $$;
+
+-- Reflection columns (add to same migration or run separately)
+ALTER TABLE conversations
+  ADD COLUMN IF NOT EXISTS reflection_score integer,
+  ADD COLUMN IF NOT EXISTS reflection_critique text;

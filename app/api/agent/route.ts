@@ -229,6 +229,47 @@ export async function POST(req: NextRequest) {
             // follow-ups are optional, don't fail the request
           }
 
+          // Step 11: Reflection — self-critique the answer quality
+          try {
+            const reflectionRes = await groq.chat.completions.create({
+              model: "llama-3.3-70b-versatile",
+              messages: [
+                {
+                  role: "system",
+                  content: `You are a quality evaluator for a Fujifilm X-E5 photography assistant. Score the answer on these 4 criteria:
+1. Answered the question directly (did it actually address what was asked?)
+2. Specific & actionable (gave concrete settings, values, names — not vague advice)
+3. Included prices/availability if relevant to the question
+4. Used photography expertise (not generic advice that could apply to any camera)
+
+Return ONLY a JSON object, no other text:
+{"score": <1-10>, "critique": "<one sentence: what was good and what was missing>", "criteria": {"answered": <1-3>, "specific": <1-3>, "prices": <1-3>, "expertise": <1-3>}}`
+                },
+                {
+                  role: "user",
+                  content: `Question: ${message}\n\nAnswer: ${fullResponse.slice(0, 1500)}`
+                }
+              ],
+              max_tokens: 200,
+              temperature: 0.1,
+              stream: false,
+            });
+
+            const rawRef = reflectionRes.choices[0]?.message?.content || "{}";
+            const cleanRef = rawRef.replace(/```json|```/g, "").trim();
+            const reflection = JSON.parse(cleanRef);
+
+            if (reflection.score) {
+              if (sessionId && isSupabaseConfigured()) {
+                const { updateReflection } = await import("@/lib/memory");
+                await updateReflection(sessionId, reflection.score, reflection.critique || "");
+              }
+              send({ type: "reflection", score: reflection.score, critique: reflection.critique, criteria: reflection.criteria });
+            }
+          } catch (e) {
+            console.error("[reflection] failed:", e);
+          }
+
           send({ type: "done" });
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : "Unknown error";

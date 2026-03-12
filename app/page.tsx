@@ -27,6 +27,8 @@ interface Message {
   agentIcon?: string;
   recipe?: ParsedRecipe;
   followups?: string[];
+  reflectionScore?: number;
+  reflectionCritique?: string;
 }
 
 interface SimilarMatch {
@@ -205,6 +207,7 @@ export default function Home() {
       let sources: Source[] = [];
       let agentInfo: { name: string; icon: string } | null = null;
       let pendingFollowups: string[] = [];
+      let pendingReflection: { score: number; critique: string } | null = null;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -236,6 +239,8 @@ export default function Home() {
               });
             } else if (data.type === "followups") {
               pendingFollowups = data.suggestions || [];
+            } else if (data.type === "reflection") {
+              pendingReflection = { score: data.score, critique: data.critique };
             } else if (data.type === "tokens") {
               setSessionTokens(prev => prev + (data.count || 0));
               if (data.exact) setTokensExact(true);
@@ -249,6 +254,8 @@ export default function Home() {
                 agentIcon: agentInfo?.icon,
                 recipe: detectedRecipe || undefined,
                 followups: pendingFollowups.length > 0 ? pendingFollowups : undefined,
+                reflectionScore: pendingReflection?.score,
+                reflectionCritique: pendingReflection?.critique,
               }]);
               setHistory((prev) => [
                 ...prev,
@@ -437,6 +444,17 @@ export default function Home() {
               <div style={{ fontSize: "0.56rem", letterSpacing: "0.2em", textTransform: "uppercase", color: t.textGhost, marginBottom: "0.35rem", display: "flex", alignItems: "center", gap: "0.35rem", paddingLeft: msg.role === "assistant" ? "0.25rem" : 0, paddingRight: msg.role === "user" ? "0.25rem" : 0 }}>
                 {msg.role === "assistant" && msg.agentIcon && <Icon name={msg.agentIcon as Parameters<typeof Icon>[0]["name"]} size={12} style={{ color: t.gold, marginRight: "0.15rem", verticalAlign: "middle" }} />}
                 {msg.role === "user" ? "You" : msg.agentName || "XE5 Agent"}
+                {msg.role === "assistant" && msg.reflectionScore !== undefined && (
+                  <span title={msg.reflectionCritique} style={{
+                    fontSize: "0.5rem", padding: "0.1rem 0.35rem", borderRadius: "2px", letterSpacing: "0.05em",
+                    background: msg.reflectionScore >= 8 ? "rgba(100,180,100,0.12)" : msg.reflectionScore >= 6 ? "rgba(200,169,110,0.12)" : "rgba(200,100,100,0.12)",
+                    border: `1px solid ${msg.reflectionScore >= 8 ? "rgba(100,180,100,0.3)" : msg.reflectionScore >= 6 ? "rgba(200,169,110,0.3)" : "rgba(200,100,100,0.3)"}`,
+                    color: msg.reflectionScore >= 8 ? "#7ec87e" : msg.reflectionScore >= 6 ? t.gold : "#c87e7e",
+                    cursor: "default",
+                  }}>
+                    {msg.reflectionScore}/10
+                  </span>
+                )}
               </div>
               <div style={{ maxWidth: msg.role === "user" ? "70%" : "100%", background: msg.role === "user" ? t.bgCardUser : t.bgCard, border: `1px solid ${msg.role === "user" ? (isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)") : t.borderCard}`, borderRadius: "4px", padding: "0.9rem 1.15rem", transition: "background 0.3s, border-color 0.3s" }}>
                 {msg.role === "assistant" ? <MessageRenderer text={msg.content} /> : <span style={{ fontSize: "0.875rem", color: t.text }}>{msg.content}</span>}
