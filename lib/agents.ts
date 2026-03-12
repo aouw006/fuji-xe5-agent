@@ -30,7 +30,7 @@ export const SUB_AGENTS: Record<string, SubAgent> = {
   film_recipes: {
     id: "film_recipes",
     name: "Film Recipe Agent",
-    icon: "🎞️",
+    icon: "agentFilm",
     systemPrompt: `You are the world's foremost expert on Fujifilm X-E5 film simulation recipes. You live and breathe Fuji film sims.
 
 Your expertise:
@@ -67,7 +67,7 @@ Cite the original creator or source (e.g. "Recipe by Ritchie Roesch / Fuji X Wee
   camera_settings: {
     id: "camera_settings",
     name: "Settings Agent",
-    icon: "⚙️",
+    icon: "agentSettings",
     systemPrompt: `You are a Fujifilm X-E5 camera configuration expert — you know every menu, every button, every hidden setting.
 
 Your expertise covers the X-E5 specifically:
@@ -99,7 +99,7 @@ Always explain WHY a setting matters, not just what it is.`,
   locations: {
     id: "locations",
     name: "Locations Agent",
-    icon: "📍",
+    icon: "agentLocation",
     systemPrompt: `You are a travel and street photography expert who specialises in locations perfect for the Fujifilm X-E5.
 
 The X-E5's key characteristics to factor into location advice:
@@ -129,7 +129,7 @@ For each location provide:
   gear: {
     id: "gear",
     name: "Gear Agent",
-    icon: "🎒",
+    icon: "agentGear",
     systemPrompt: `You are a Fujifilm X-E5 gear and accessories specialist. You know every compatible lens, accessory, and piece of kit.
 
 Your expertise:
@@ -157,7 +157,7 @@ Always mention price range and where to buy. Flag if an accessory requires a fir
   community: {
     id: "community",
     name: "Community Agent",
-    icon: "🌐",
+    icon: "agentCommunity",
     systemPrompt: `You are a curator of the best Fujifilm X-E5 community knowledge — Reddit, forums, YouTube, blogs.
 
 You surface:
@@ -177,12 +177,94 @@ Be conversational and honest — include both praise and criticism from the comm
     ],
     priorityDomains: ["reddit.com", "fujixweekly.com", "youtube.com", "fujilove.com"],
   },
+
+  comparison: {
+    id: "comparison",
+    name: "Comparison Agent",
+    icon: "agentCompare",
+    systemPrompt: `You are an expert Fujifilm X-E5 advisor specialising in two things: head-to-head comparisons and personalised gear recommendations.
+
+── MODE 1: COMPARISON (when user asks "X vs Y") ──
+
+Always open with a one-sentence verdict on who each option suits best.
+
+For LENS comparisons, use this structure:
+
+**[Lens A] vs [Lens B] — Fujifilm X-E5**
+
+| | [Lens A] | [Lens B] |
+|---|---|---|
+| Focal length (equiv.) | | |
+| Max aperture | | |
+| Size & weight | | |
+| OIS | | |
+| Min. focus distance | | |
+| Approx. price | | |
+
+Then cover: Image quality · Bokeh · Autofocus speed · Build & weather sealing · How it pairs with the X-E5 body and OVF specifically.
+
+Scenario verdicts:
+- **Street photography**: [winner + why]
+- **Portrait**: [winner + why]
+- **Travel / everyday**: [winner + why]
+- **Low light**: [winner + why]
+
+**Overall verdict**: [clear recommendation based on use case]
+
+For ACCESSORY or other comparisons, adapt the table to the most relevant categories.
+
+── MODE 2: RECOMMENDATION (when user asks "what should I get for X") ──
+
+When the user describes a shooting style, budget, or use case without specifying two options to compare, give a ranked recommendation:
+
+**Best for [their use case]: [top pick]**
+- Why it works for the X-E5 specifically
+- What it excels at
+- Any drawbacks to know
+
+**Runner-up: [second option]**
+- When to choose this instead
+
+**Budget pick: [affordable option]** (if relevant)
+- Trade-offs vs the top pick
+
+**To avoid**: [anything commonly recommended that doesn't suit the X-E5 or their use case]
+
+── GENERAL RULES ──
+- Always factor in the X-E5's specific characteristics: compact rangefinder body, hybrid OVF/EVF, no IBIS, APS-C sensor, X-mount
+- Be honest about trade-offs — never declare one option universally better
+- Include approximate prices in AUD where possible (Australian user)
+- Cite real-world user experiences from the community where relevant`,
+
+    searchQueries: (q) => {
+      const isComparison = /vs|versus|compare|difference|between|or the|which is|better|worth it/.test(q.toLowerCase());
+      if (isComparison) {
+        return [
+          `Fujifilm X-E5 ${q} comparison review`,
+          `${q} fujifilm X mount compared real world`,
+          `${q} versus review 2024 2025 fuji`,
+          `${q} which to buy fujifilm photographer`,
+        ];
+      }
+      return [
+        `best ${q} for Fujifilm X-E5`,
+        `recommended ${q} fuji X mount 2024 2025`,
+        `${q} fujifilm X-E5 review recommendation`,
+        `fujifilm X-E5 ${q} worth buying community`,
+      ];
+    },
+    priorityDomains: ["dpreview.com", "mirrorlessons.com", "bhphotovideo.com", "kenrockwell.com", "fujixweekly.com"],
+  },
 };
 
 // ─── Query Planner ────────────────────────────────────────────────────────────
 
 export function detectSubAgent(query: string): SubAgent {
   const q = query.toLowerCase();
+
+  // Comparison/recommendation — check first as it's more specific
+  if (q.match(/vs|versus|compare|compared|difference between|which is better|worth it|should i get|recommend me|what.*buy|best.*for me/))
+    return SUB_AGENTS.comparison;
 
   if (q.match(/film|recipe|simulation|sim|velvia|provia|eterna|acros|chrome|grain|tone|jpeg look|color profile/))
     return SUB_AGENTS.film_recipes;

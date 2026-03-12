@@ -26,13 +26,13 @@ export function estimateTokens(text: string): number {
 
 // ─── Token Usage ──────────────────────────────────────────────────────────────
 
-export async function trackTokens(sessionId: string, inputText: string, outputText: string): Promise<void> {
+export async function trackTokens(sessionId: string, inputText: string, outputText: string, agentId?: string): Promise<void> {
   try {
     const tokens = estimateTokens(inputText + outputText);
     const today = new Date().toISOString().split("T")[0];
     await supabaseFetch("/token_usage", {
       method: "POST",
-      body: JSON.stringify({ session_id: sessionId, tokens_used: tokens, date: today }),
+      body: JSON.stringify({ session_id: sessionId, tokens_used: tokens, date: today, ...(agentId && { agent_id: agentId }) }),
     });
   } catch {}
 }
@@ -158,4 +158,231 @@ export async function getAllSavedRecipes(): Promise<SavedRecipe[]> {
       settings: typeof r.settings === "string" ? JSON.parse(r.settings) : r.settings,
     })) as SavedRecipe[];
   } catch { return []; }
+}
+
+// ─── Monthly Token Usage ──────────────────────────────────────────────────────
+
+// Groq pricing: llama-3.3-70b-versatile
+// Input: $0.59 / 1M tokens  Output: $0.79 / 1M tokens
+// We track combined, so use blended rate ~$0.69 / 1M tokens
+const BLENDED_COST_PER_TOKEN = 0.00000069; // $0.69 per 1M
+const MONTHLY_BUDGET_USD = 3.00;
+
+export async function getMonthlyTokenUsage(): Promise<{
+  tokensUsed: number;
+  costUsd: number;
+  budgetUsd: number;
+  pct: number;
+  dailyBreakdown: { date: string; tokens: number; cost: number }[];
+}> {
+  try {
+    const now = new Date();
+    const firstOfMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
+    const data = await supabaseFetch(
+      `/token_usage?date=gte.${firstOfMonth}&select=tokens_used,date&order=date.asc`
+    );
+
+    if (!Array.isArray(data)) throw new Error("No data");
+
+    // Aggregate by date
+    const byDate: Record<string, number> = {};
+    for (const row of data) {
+      byDate[row.date] = (byDate[row.date] || 0) + row.tokens_used;
+    }
+
+    const dailyBreakdown = Object.entries(byDate).map(([date, tokens]) => ({
+      date,
+      tokens,
+      cost: tokens * BLENDED_COST_PER_TOKEN,
+    }));
+
+    const tokensUsed = dailyBreakdown.reduce((s, d) => s + d.tokens, 0);
+    const costUsd = tokensUsed * BLENDED_COST_PER_TOKEN;
+    const pct = Math.min((costUsd / MONTHLY_BUDGET_USD) * 100, 100);
+
+    return { tokensUsed, costUsd, budgetUsd: MONTHLY_BUDGET_USD, pct, dailyBreakdown };
+  } catch {
+    return { tokensUsed: 0, costUsd: 0, budgetUsd: MONTHLY_BUDGET_USD, pct: 0, dailyBreakdown: [] };
+  }
+}
+
+
+// ─── Dashboard Analytics ──────────────────────────────────────────────────────
+
+export async function getDashboardData() {
+  try {
+    const now = new Date();
+    const firstOfMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString().split("T")[0];
+
+    const [tokenRows, convRows, recipeRows] = await Promise.all([
+      supabaseFetch(`/token_usage?date=gte.${thirtyDaysAgo}&select=tokens_used,date,agent_id&order=date.asc`),
+      supabaseFetch(`/conversations?select=agent_id,tokens_used,response_time_ms,prompt_sent,sources_used,content,role,created_at,session_id&order=created_at.desc&limit=200`),
+      supabaseFetch(`/saved_recipes?select=name,mood,best_for,settings,created_at&order=created_at.desc`),
+    ]);
+
+    // ── Cost over time ────────────────────────────────────────────────────────
+    const byDate: Record<string, number> = {};
+    if (Array.isArray(tokenRows)) {
+      for (const r of tokenRows) {
+        byDate[r.date] = (byDate[r.date] || 0) + r.tokens_used;
+      }
+    }
+    const costByDay = Object.entries(byDate).map(([date, tokens]) => ({
+      date: date.slice(5), // MM-DD
+      tokens,
+      cost: parseFloat((tokens * BLENDED_COST_PER_TOKEN).toFixed(5)),
+    }));
+
+    // ── Agent breakdown ───────────────────────────────────────────────────────
+    const agentTokens: Record<string, number> = {};
+    if (Array.isArray(tokenRows)) {
+      for (const r of tokenRows) {
+        const a = r.agent_id || "unknown";
+        agentTokens[a] = (agentTokens[a] || 0) + r.tokens_used;
+      }
+    }
+    const agentBreakdown = Object.entries(agentTokens).map(([id, tokens]) => ({
+      id,
+      tokens,
+      cost: parseFloat((tokens * BLENDED_COST_PER_TOKEN).toFixed(5)),
+      pct: 0,
+    }));
+    const totalTokens = agentBreakdown.reduce((s, a) => s + a.tokens, 0);
+    agentBreakdown.forEach(a => { a.pct = totalTokens > 0 ? Math.round((a.tokens / totalTokens) * 100) : 0; });
+    agentBreakdown.sort((a, b) => b.tokens - a.tokens);
+
+    // ── Query count & avg response time per agent ─────────────────────────────
+    const agentQueries: Record<string, { count: number; totalMs: number }> = {};
+    if (Array.isArray(convRows)) {
+      for (const r of convRows) {
+        if (r.role !== "assistant" || !r.agent_id) continue;
+        const a = r.agent_id;
+        if (!agentQueries[a]) agentQueries[a] = { count: 0, totalMs: 0 };
+        agentQueries[a].count++;
+        agentQueries[a].totalMs += r.response_time_ms || 0;
+      }
+    }
+
+    // ── Prompt inspector ──────────────────────────────────────────────────────
+    const promptLog: {
+      session_id: string;
+      query: string;
+      agent_id: string;
+      prompt_sent: string;
+      sources_used: { title: string; url: string }[];
+      tokens_used: number;
+      response_time_ms: number;
+      created_at: string;
+    }[] = [];
+
+    if (Array.isArray(convRows)) {
+      // Pair up user/assistant messages
+      for (let i = 0; i < convRows.length; i++) {
+        const r = convRows[i];
+        if (r.role === "assistant" && r.agent_id) {
+          // Find the preceding user message for this session
+          const userMsg = convRows.slice(i + 1).find(
+            (m: { role: string; session_id: string }) => m.role === "user" && m.session_id === r.session_id
+          );
+          promptLog.push({
+            session_id: r.session_id,
+            query: userMsg?.content?.slice(0, 120) || "(unknown)",
+            agent_id: r.agent_id,
+            prompt_sent: r.prompt_sent || "",
+            sources_used: (() => {
+              try { return typeof r.sources_used === "string" ? JSON.parse(r.sources_used) : (r.sources_used || []); }
+              catch { return []; }
+            })(),
+            tokens_used: r.tokens_used || 0,
+            response_time_ms: r.response_time_ms || 0,
+            created_at: r.created_at,
+          });
+        }
+      }
+    }
+
+    // ── Recipe analytics ──────────────────────────────────────────────────────
+    const simCount: Record<string, number> = {};
+    if (Array.isArray(recipeRows)) {
+      for (const r of recipeRows) {
+        const settings = typeof r.settings === "string" ? JSON.parse(r.settings) : (r.settings || []);
+        const filmSim = settings.find((s: { label: string; value: string }) =>
+          s.label.toLowerCase().includes("film") || s.label.toLowerCase().includes("simulation")
+        );
+        if (filmSim?.value) {
+          simCount[filmSim.value] = (simCount[filmSim.value] || 0) + 1;
+        }
+        // Also count by mood
+      }
+    }
+    const filmSimBreakdown = Object.entries(simCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const moodCount: Record<string, number> = {};
+    if (Array.isArray(recipeRows)) {
+      for (const r of recipeRows) {
+        if (r.mood) moodCount[r.mood] = (moodCount[r.mood] || 0) + 1;
+      }
+    }
+    const moodBreakdown = Object.entries(moodCount)
+      .map(([mood, count]) => ({ mood, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // ── Summary stats ─────────────────────────────────────────────────────────
+    const monthTokens = Array.isArray(tokenRows)
+      ? tokenRows.filter(r => r.date >= firstOfMonth).reduce((s: number, r: { tokens_used: number }) => s + r.tokens_used, 0)
+      : 0;
+
+    return {
+      costByDay,
+      agentBreakdown,
+      agentQueries,
+      promptLog: promptLog.slice(0, 50),
+      filmSimBreakdown,
+      moodBreakdown,
+      totalRecipes: Array.isArray(recipeRows) ? recipeRows.length : 0,
+      monthTokens,
+      monthCost: parseFloat((monthTokens * BLENDED_COST_PER_TOKEN).toFixed(4)),
+      budgetUsd: MONTHLY_BUDGET_USD,
+      totalQueries: promptLog.length,
+    };
+  } catch (e) {
+    console.error("Dashboard error:", e);
+    return null;
+  }
+}
+
+// ─── Custom Agent Sources ─────────────────────────────────────────────────────
+
+export interface AgentSource {
+  id: string;
+  agent_id: string;
+  domain: string;
+  created_at: string;
+}
+
+export async function getAgentSources(): Promise<AgentSource[]> {
+  try {
+    const data = await supabaseFetch("/agent_sources?order=created_at.asc");
+    return Array.isArray(data) ? data : [];
+  } catch { return []; }
+}
+
+export async function addAgentSource(agentId: string, domain: string): Promise<AgentSource | null> {
+  try {
+    const data = await supabaseFetch("/agent_sources", {
+      method: "POST",
+      body: JSON.stringify({ agent_id: agentId, domain: domain.toLowerCase().trim() }),
+    });
+    return data?.[0] || null;
+  } catch { return null; }
+}
+
+export async function deleteAgentSource(id: string): Promise<void> {
+  try {
+    await supabaseFetch(`/agent_sources?id=eq.${id}`, { method: "DELETE" });
+  } catch {}
 }

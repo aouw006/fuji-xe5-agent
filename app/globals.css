@@ -4,40 +4,57 @@
   padding: 0;
 }
 
-html,
-body {
+html, body {
   height: 100%;
   background: #0c0a07;
   color: #e8d5b0;
   font-family: "DM Sans", sans-serif;
+  transition: background 0.3s, color 0.3s;
 }
 
-textarea::placeholder {
-  color: #2a2318;
-}
+textarea::placeholder { color: #2a2318; }
+textarea:focus { outline: none; }
 
-::-webkit-scrollbar {
-  width: 3px;
-}
-::-webkit-scrollbar-track {
-  background: #0c0a07;
-}
-::-webkit-scrollbar-thumb {
-  background: #2a2318;
-  border-radius: 2px;
-}
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2318; border-radius: 2px; }
 
 @keyframes pulse {
   0%, 100% { opacity: 0.3; transform: scale(0.8); }
   50% { opacity: 1; transform: scale(1); }
 }
-
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Mobile responsive ─────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .hide-mobile { display: none !important; }
+}
+
+@media (min-width: 481px) {
+  .show-mobile-only { display: none !important; }
+}
+
+/* ─── Dashboard mobile ───────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .dash-grid { grid-template-columns: 1fr !important; }
+  .dash-grid > * { grid-column: span 1 !important; }
+  .dash-stats { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ─── Grain overlay (used in dashboard) ─────────────────────────────── */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  background-size: 256px;
+  opacity: 0.4;
 }

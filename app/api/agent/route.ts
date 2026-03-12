@@ -3,7 +3,8 @@ import Groq from "groq-sdk";
 import { detectSubAgent } from "@/lib/agents";
 import { multiRoundSearch } from "@/lib/search";
 import { getSession, saveMessage, isSupabaseConfigured } from "@/lib/memory";
-import { trackTokens, estimateTokens } from "@/lib/analytics";
+import type { MessageMeta } from "@/lib/memory";
+import { trackTokens, estimateTokens, getAgentSources } from "@/lib/analytics";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -19,10 +20,22 @@ export async function POST(req: NextRequest) {
         };
 
         try {
+          const startTime = Date.now();
           // Step 1: Detect sub-agent
-          const agent = detectSubAgent(message);
+          let agent = detectSubAgent(message);
           send({ type: "agent", agentName: agent.name, agentIcon: agent.icon });
           send({ type: "status", text: `${agent.icon} ${agent.name} activated...` });
+
+          // Merge any custom sources the user has added for this agent
+          try {
+            const allCustomSources = await getAgentSources();
+            const customForAgent = allCustomSources
+              .filter(s => s.agent_id === agent.id)
+              .map(s => s.domain);
+            if (customForAgent.length > 0) {
+              agent = { ...agent, priorityDomains: [...customForAgent, ...agent.priorityDomains] };
+            }
+          } catch {}
 
           // Step 2: Load memory FIRST before searching
           let memoryHistory: { role: "user" | "assistant"; content: string }[] = [];
@@ -44,10 +57,12 @@ export async function POST(req: NextRequest) {
             send({ type: "status", text: "Planning search strategy..." });
             const queries = agent.searchQueries(message);
 
+            const callSeed = Date.now() % 997;
             const sources = await multiRoundSearch(
               queries,
               agent.priorityDomains,
-              (msg) => send({ type: "status", text: msg })
+              (msg) => send({ type: "status", text: msg }),
+              callSeed
             );
 
             sourceMeta = sources.map((s) => ({ title: s.title, url: s.url }));
@@ -79,11 +94,11 @@ export async function POST(req: NextRequest) {
 
           // Step 7: Build system prompt with memory injected
           const systemWithMemory = agent.systemPrompt + memorySummary +
-            "\n\nIMPORTANT: If the user asks about previous answers or recipes, refer to the PREVIOUS CONVERSATION CONTEXT above. Always give complete, detailed answers.";
+            "\n\nIMPORTANT: If the user asks about previous answers or recipes, refer to the PREVIOUS CONVERSATION CONTEXT above. Always give complete, detailed answers. FRESHNESS: Do not repeat information, recipes, or advice you have already given in this conversation — if the user is asking a similar question again, find different examples, different sources, or a different angle on the topic.";
 
           // Step 8: Stream Groq response — clean messages, no history contamination
           const groqStream = await groq.chat.completions.create({
-            model: "llama3-8b-8192",
+            model: "llama-3.3-70b-versatile",
             messages: [
               { role: "system", content: systemWithMemory },
               { role: "user", content: userMessage },
@@ -104,9 +119,46 @@ export async function POST(req: NextRequest) {
 
           // Step 9: Save clean Q&A to memory + track token usage
           if (sessionId && isSupabaseConfigured()) {
+            const responseTimeMs = Date.now() - startTime;
+            const tokensEst = estimateTokens(userMessage + systemWithMemory + fullResponse);
+            const meta: MessageMeta = {
+              agent_id: agent.id,
+              prompt_sent: systemWithMemory.slice(0, 4000),
+              sources_used: sourceMeta,
+              tokens_used: tokensEst,
+              response_time_ms: responseTimeMs,
+            };
             await saveMessage(sessionId, "user", message);
-            await saveMessage(sessionId, "assistant", fullResponse);
-            await trackTokens(sessionId, userMessage + systemWithMemory, fullResponse);
+            await saveMessage(sessionId, "assistant", fullResponse, meta);
+            await trackTokens(sessionId, userMessage + systemWithMemory, fullResponse, agent.id);
+          }
+
+          // Step 10: Generate follow-up suggestions
+          try {
+            const followupStream = await groq.chat.completions.create({
+              model: "llama-3.3-70b-versatile",
+              messages: [
+                {
+                  role: "system",
+                  content: "You are a Fujifilm X-E5 expert assistant. Given the question and answer below, generate exactly 3 short follow-up questions the user might naturally want to ask next. Return ONLY a JSON array of 3 strings, no explanation, no markdown, no numbering. Example: [\"How does Velvia compare to Classic Chrome?\", \"What grain setting works best?\", \"Can I use this recipe for portraits?\"]"
+                },
+                {
+                  role: "user",
+                  content: `Question: ${message}\n\nAnswer summary: ${fullResponse.slice(0, 600)}`
+                }
+              ],
+              max_tokens: 200,
+              temperature: 0.8,
+              stream: false,
+            });
+            const raw = followupStream.choices[0]?.message?.content || "[]";
+            const clean = raw.replace(/```json|```/g, "").trim();
+            const suggestions = JSON.parse(clean);
+            if (Array.isArray(suggestions) && suggestions.length > 0) {
+              send({ type: "followups", suggestions: suggestions.slice(0, 3) });
+            }
+          } catch {
+            // follow-ups are optional, don't fail the request
           }
 
           send({ type: "done" });
