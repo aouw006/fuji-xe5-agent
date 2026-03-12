@@ -100,3 +100,91 @@ export function formatRagContext(chunks: RagChunk[]): string {
 
   return `\n\n## Curated Knowledge Base\nThe following is from your ingested document library — treat this as high-confidence reference material:\n\n${formatted}\n`;
 }
+
+// ─── Similar Question Detection ───────────────────────────────────────────────
+
+export interface SimilarQuestion {
+  session_id: string;
+  content: string;         // the original question
+  answer: string;          // the assistant's answer
+  created_at: string;
+  similarity: number;
+}
+
+/**
+ * Store a question embedding so future queries can find it.
+ * Called after saving the message, with the question text.
+ */
+export async function storeQuestionEmbedding(
+  sessionId: string,
+  question: string
+): Promise<void> {
+  if (!VOYAGE_KEY || !SUPABASE_KEY) return;
+  try {
+    const embedding = await embedQuery(question);
+    await fetch(`${SUPABASE_URL}/rest/v1/conversations`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        apikey: SUPABASE_KEY,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ question_embedding: embedding }),
+      // patch only the latest user message for this session
+    });
+
+    // More precise: patch by session_id + role + content match via RPC
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/store_question_embedding`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        apikey: SUPABASE_KEY,
+      },
+      body: JSON.stringify({
+        p_session_id: sessionId,
+        p_question: question,
+        p_embedding: embedding,
+      }),
+    });
+  } catch (e) {
+    console.error("[RAG] storeQuestionEmbedding error:", e);
+  }
+}
+
+/**
+ * Find past questions semantically similar to the current one.
+ * Returns the question + the assistant's reply that followed it.
+ */
+export async function findSimilarQuestion(
+  question: string,
+  currentSessionId: string,
+  threshold = 0.88
+): Promise<SimilarQuestion | null> {
+  if (!VOYAGE_KEY || !SUPABASE_KEY) return null;
+  try {
+    const embedding = await embedQuery(question);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/match_questions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        apikey: SUPABASE_KEY,
+      },
+      body: JSON.stringify({
+        query_embedding: embedding,
+        match_threshold: threshold,
+        match_count: 1,
+        exclude_session_id: currentSessionId,
+      }),
+    });
+    if (!res.ok) return null;
+    const results = await res.json();
+    if (!Array.isArray(results) || results.length === 0) return null;
+    return results[0] as SimilarQuestion;
+  } catch (e) {
+    console.error("[RAG] findSimilarQuestion error:", e);
+    return null;
+  }
+}

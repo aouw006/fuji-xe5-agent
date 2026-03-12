@@ -5,7 +5,7 @@ import { multiRoundSearch } from "@/lib/search";
 import { getSession, saveMessage, isSupabaseConfigured } from "@/lib/memory";
 import type { MessageMeta } from "@/lib/memory";
 import { trackTokens, estimateTokens, getAgentSources } from "@/lib/analytics";
-import { retrieveChunks, formatRagContext } from "@/lib/rag";
+import { retrieveChunks, formatRagContext, findSimilarQuestion, storeQuestionEmbedding } from "@/lib/rag";
 import { runComparisonAgent } from "@/lib/agentLoop";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -27,6 +27,25 @@ export async function POST(req: NextRequest) {
           let agent = detectSubAgent(message);
           send({ type: "agent", agentName: agent.name, agentIcon: agent.icon });
           send({ type: "status", text: `${agent.icon} ${agent.name} activated...` });
+
+          // Step 1b: Check for similar past questions (async, non-blocking)
+          if (isSupabaseConfigured()) {
+            try {
+              const similar = await findSimilarQuestion(message, sessionId || "");
+              if (similar) {
+                send({
+                  type: "similar",
+                  question: similar.content,
+                  answer: similar.answer,
+                  sessionId: similar.session_id,
+                  date: similar.created_at,
+                  similarity: similar.similarity,
+                });
+              }
+            } catch {
+              // Non-fatal — continue without similar check
+            }
+          }
 
           // Merge any custom sources the user has added for this agent
           try {
@@ -76,6 +95,7 @@ export async function POST(req: NextRequest) {
               await saveMessage(sessionId, "user", message, meta);
               await saveMessage(sessionId, "assistant", fullResponse, meta);
               await trackTokens(sessionId, message, fullResponse, agent.id);
+              storeQuestionEmbedding(sessionId, message).catch(() => {});
             }
 
             controller.close();
@@ -148,23 +168,31 @@ export async function POST(req: NextRequest) {
             max_tokens: 2000,
             temperature: 0.7,
             stream: true,
+            stream_options: { include_usage: true },
           });
 
           let fullResponse = "";
+          let actualTokens = 0;
           for await (const chunk of groqStream) {
             const text = chunk.choices[0]?.delta?.content || "";
             if (text) {
               fullResponse += text;
               send({ type: "text", text });
             }
+            // Groq sends usage in the final chunk
+            if (chunk.usage) {
+              actualTokens = chunk.usage.prompt_tokens + chunk.usage.completion_tokens;
+            }
           }
 
           // Step 9: Save clean Q&A to memory + track token usage
           const responseTimeMs = Date.now() - startTime;
-          const tokensEst = estimateTokens(userMessage + systemWithMemory + fullResponse);
+          const tokensEst = actualTokens > 0
+            ? actualTokens
+            : estimateTokens(userMessage + systemWithMemory + fullResponse);
 
           // Send token count to client for session display
-          send({ type: "tokens", count: tokensEst });
+          send({ type: "tokens", count: tokensEst, exact: actualTokens > 0 });
 
           if (sessionId && isSupabaseConfigured()) {
             const meta: MessageMeta = {
@@ -177,6 +205,8 @@ export async function POST(req: NextRequest) {
             await saveMessage(sessionId, "user", message);
             await saveMessage(sessionId, "assistant", fullResponse, meta);
             await trackTokens(sessionId, userMessage + systemWithMemory, fullResponse, agent.id);
+            // Store question embedding for future similarity detection (fire and forget)
+            storeQuestionEmbedding(sessionId, message).catch(() => {});
           }
 
           // Step 10: Generate follow-up suggestions

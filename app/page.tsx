@@ -28,6 +28,14 @@ interface Message {
   recipe?: ParsedRecipe;
   followups?: string[];
 }
+
+interface SimilarMatch {
+  question: string;
+  answer: string;
+  sessionId: string;
+  date: string;
+  similarity: number;
+}
 interface HistoryEntry { role: "user" | "assistant"; content: string; }
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -138,6 +146,9 @@ export default function Home() {
   }, [fontSize]);
   const [isDark, setIsDark] = useState(true);
   const [sessionTokens, setSessionTokens] = useState(0);
+  const [tokensExact, setTokensExact] = useState(false);
+  const [similarMatch, setSimilarMatch] = useState<SimilarMatch | null>(null);
+  const [showingSimilar, setShowingSimilar] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const t: Theme = isDark ? darkTheme : lightTheme;
@@ -173,6 +184,8 @@ export default function Home() {
     setStreamingSources([]);
     setStreamingAgent(null);
     setStatusLog([]);
+    setSimilarMatch(null);
+    setShowingSimilar(false);
     setInput("");
 
     setMessages((prev) => [...prev, { role: "user", content: query }]);
@@ -213,10 +226,19 @@ export default function Home() {
             } else if (data.type === "text") {
               fullText += data.text;
               setStreaming(fullText);
+            } else if (data.type === "similar") {
+              setSimilarMatch({
+                question: data.question,
+                answer: data.answer,
+                sessionId: data.sessionId,
+                date: data.date,
+                similarity: data.similarity,
+              });
             } else if (data.type === "followups") {
               pendingFollowups = data.suggestions || [];
             } else if (data.type === "tokens") {
               setSessionTokens(prev => prev + (data.count || 0));
+              if (data.exact) setTokensExact(true);
             } else if (data.type === "done") {
               const detectedRecipe = parseRecipeFromText(fullText);
               setMessages((prev) => [...prev, {
@@ -333,7 +355,7 @@ export default function Home() {
         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexShrink: 0 }}>
           {/* Token bar — hidden on mobile, shown md+ */}
           <div className="hide-mobile">
-            <TokenBar sessionTokens={sessionTokens} />
+            <TokenBar sessionTokens={sessionTokens} exact={tokensExact} />
           </div>
           <button onClick={toggleTheme} style={headerBtn} title={isDark ? "Switch to light mode" : "Switch to dark mode"}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
@@ -455,6 +477,37 @@ export default function Home() {
               )}
             </div>
           ))}
+
+          {/* Similar question banner */}
+          {similarMatch && (loading || streaming) && (
+            <div style={{ marginBottom: "0.75rem", borderRadius: "4px", border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)"}`, background: isDark ? "rgba(200,169,110,0.05)" : "rgba(176,136,64,0.06)", overflow: "hidden", animation: "fadeIn 0.3s ease" }}>
+              <div style={{ padding: "0.6rem 0.9rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0 }}>
+                  <span style={{ fontSize: "0.65rem", color: t.gold, flexShrink: 0 }}>↩</span>
+                  <div style={{ minWidth: 0 }}>
+                    <span style={{ fontSize: "0.6rem", color: t.textMuted }}>Similar question from </span>
+                    <span style={{ fontSize: "0.6rem", color: t.gold }}>{new Date(similarMatch.date).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}</span>
+                    <span style={{ fontSize: "0.58rem", color: t.textFaint }}> · {Math.round(similarMatch.similarity * 100)}% match</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
+                  <button
+                    onClick={() => setShowingSimilar(s => !s)}
+                    style={{ fontSize: "0.58rem", padding: "0.25rem 0.6rem", borderRadius: "2px", cursor: "pointer", background: showingSimilar ? t.goldDim : "transparent", border: `1px solid ${showingSimilar ? t.gold : isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)"}`, color: showingSimilar ? t.gold : t.textMuted, transition: "all 0.15s", fontFamily: "'DM Mono', monospace" }}>
+                    {showingSimilar ? "Hide" : "View previous"}
+                  </button>
+                </div>
+              </div>
+              {showingSimilar && (
+                <div style={{ borderTop: `1px solid ${isDark ? "rgba(200,169,110,0.1)" : "rgba(176,136,64,0.15)"}`, padding: "0.75rem 0.9rem" }}>
+                  <div style={{ fontSize: "0.6rem", color: t.textFaint, marginBottom: "0.35rem", fontStyle: "italic" }}>"{similarMatch.question}"</div>
+                  <div style={{ fontSize: "0.7rem", color: t.textMuted, lineHeight: 1.6, maxHeight: "200px", overflowY: "auto" }}>
+                    {similarMatch.answer.slice(0, 600)}{similarMatch.answer.length > 600 ? "…" : ""}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Streaming */}
           {(loading || streaming) && (
