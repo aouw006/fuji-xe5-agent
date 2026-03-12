@@ -207,7 +207,17 @@ export default function HistorySidebar({ open, onClose, onLoadSession, currentSe
           )}
 
           {activeTab === "recipes" && (
-            <SavedRecipesPanel open={true} sessionId={currentSessionId} isDark={isDark} />
+            <>
+              <div style={{ padding: "0.6rem 1.25rem 0", display: "flex", gap: "0.5rem" }}>
+                <button onClick={() => setGalleryOpen(true)}
+                  style={{ flex: 1, padding: "0.4rem", background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.08em", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem", transition: "all 0.2s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}>
+                  <Icon name="compare" size={11} /> Gallery &amp; Compare
+                </button>
+              </div>
+              <SavedRecipesPanel open={true} sessionId={currentSessionId} isDark={isDark} />
+            </>
           )}
         </div>
 
