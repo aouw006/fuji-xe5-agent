@@ -1,0 +1,348 @@
+"use client";
+import { useState, useRef } from "react";
+
+const t = {
+  bg: "#0e0e0e",
+  bgCard: "#141414",
+  bgSidebar: "#111111",
+  border: "rgba(255,255,255,0.07)",
+  borderCard: "rgba(255,255,255,0.05)",
+  text: "#e8e0d0",
+  textMuted: "#9a9080",
+  textFaint: "#5a5248",
+  textVeryFaint: "#3a3530",
+  gold: "#c8a96e",
+  goldDim: "rgba(200,169,110,0.15)",
+  goldBorder: "rgba(200,169,110,0.25)",
+};
+
+type AgentId = "film_recipes" | "camera_settings" | "gear" | "comparison" | "community" | "locations";
+
+const AGENTS: { id: AgentId; label: string; color: string }[] = [
+  { id: "film_recipes", label: "Film Recipes", color: "#c8a96e" },
+  { id: "camera_settings", label: "Camera Settings", color: "#7eb8c8" },
+  { id: "gear", label: "Gear & Lenses", color: "#a8c87e" },
+  { id: "community", label: "Community", color: "#c87ea8" },
+  { id: "locations", label: "Locations", color: "#c8987e" },
+  { id: "comparison", label: "Comparison", color: "#7e9ec8" },
+];
+
+interface UrlEntry {
+  id: string;
+  url: string;
+  agent_id: AgentId;
+  status: "pending" | "processing" | "done" | "error" | "skipped";
+  chunks?: number;
+  error?: string;
+  title?: string;
+}
+
+export default function IngestPage() {
+  const [input, setInput] = useState("");
+  const [defaultAgent, setDefaultAgent] = useState<AgentId>("gear");
+  const [entries, setEntries] = useState<UrlEntry[]>([]);
+  const [running, setRunning] = useState(false);
+  const [log, setLog] = useState<string[]>([]);
+  const abortRef = useRef(false);
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  function addLog(msg: string) {
+    setLog(prev => [...prev.slice(-200), msg]);
+    setTimeout(() => logEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  }
+
+  function parseInput() {
+    const lines = input.split("\n").map(l => l.trim()).filter(l => l.startsWith("http"));
+    const newEntries: UrlEntry[] = lines
+      .filter(url => !entries.find(e => e.url === url))
+      .map(url => ({
+        id: Math.random().toString(36).slice(2),
+        url,
+        agent_id: defaultAgent,
+        status: "pending",
+      }));
+    setEntries(prev => [...prev, ...newEntries]);
+    setInput("");
+    addLog(`✚ Added ${newEntries.length} URL${newEntries.length !== 1 ? "s" : ""}`);
+  }
+
+  function updateEntry(id: string, patch: Partial<UrlEntry>) {
+    setEntries(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
+  }
+
+  function removeEntry(id: string) {
+    setEntries(prev => prev.filter(e => e.id !== id));
+  }
+
+  function clearDone() {
+    setEntries(prev => prev.filter(e => e.status === "pending" || e.status === "error"));
+  }
+
+  async function runIngest() {
+    const pending = entries.filter(e => e.status === "pending");
+    if (pending.length === 0) return;
+    setRunning(true);
+    abortRef.current = false;
+    addLog(`▶ Starting ingest of ${pending.length} URL${pending.length !== 1 ? "s" : ""}...`);
+
+    for (const entry of pending) {
+      if (abortRef.current) {
+        addLog("⏹ Stopped by user");
+        break;
+      }
+
+      updateEntry(entry.id, { status: "processing" });
+      addLog(`⟳ ${entry.url}`);
+
+      try {
+        const res = await fetch("/api/ingest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: entry.url, agent_id: entry.agent_id }),
+        });
+        const data = await res.json();
+
+        if (data.skipped) {
+          updateEntry(entry.id, { status: "skipped", title: data.title });
+          addLog(`  ↷ Skipped (already ingested): ${data.title || entry.url}`);
+        } else if (data.error) {
+          updateEntry(entry.id, { status: "error", error: data.error });
+          addLog(`  ✗ Error: ${data.error}`);
+        } else {
+          updateEntry(entry.id, { status: "done", chunks: data.chunks, title: data.title });
+          addLog(`  ✓ ${data.chunks} chunks — ${data.title || entry.url}`);
+        }
+      } catch (e) {
+        updateEntry(entry.id, { status: "error", error: String(e) });
+        addLog(`  ✗ ${e}`);
+      }
+
+      // Polite delay
+      await new Promise(r => setTimeout(r, 600));
+    }
+
+    setRunning(false);
+    addLog("✓ Done");
+  }
+
+  const counts = {
+    pending: entries.filter(e => e.status === "pending").length,
+    done: entries.filter(e => e.status === "done").length,
+    error: entries.filter(e => e.status === "error").length,
+    skipped: entries.filter(e => e.status === "skipped").length,
+  };
+
+  const totalChunks = entries.reduce((s, e) => s + (e.chunks || 0), 0);
+
+  return (
+    <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'DM Mono', monospace", padding: "2rem" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@300;400;500&display=swap');
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: ${t.border}; border-radius: 2px; }
+        textarea:focus, input:focus { outline: none; }
+        @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.4 } }
+        @keyframes fadeIn { from { opacity:0; transform: translateY(4px) } to { opacity:1; transform: translateY(0) } }
+      `}</style>
+
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+
+        {/* Header */}
+        <div style={{ marginBottom: "2rem", borderBottom: `1px solid ${t.border}`, paddingBottom: "1.5rem", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.6rem", fontWeight: 900, color: t.text, letterSpacing: "-0.01em" }}>
+              Knowledge Base
+            </div>
+            <div style={{ fontSize: "0.6rem", color: t.textFaint, letterSpacing: "0.2em", textTransform: "uppercase", marginTop: "0.25rem" }}>
+              RAG Ingestion Tool · Fujifilm X-E5 Agent
+            </div>
+          </div>
+          {totalChunks > 0 && (
+            <div style={{ fontSize: "0.65rem", color: t.gold, fontFamily: "'DM Mono', monospace" }}>
+              {totalChunks} chunks ingested this session
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+
+          {/* Left — input */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+            {/* URL input */}
+            <div>
+              <div style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.5rem" }}>
+                Paste URLs (one per line)
+              </div>
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder={"https://fujixweekly.com/...\nhttps://..."}
+                rows={6}
+                style={{ width: "100%", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: "4px", color: t.text, padding: "0.75rem", fontSize: "0.65rem", lineHeight: 1.7, resize: "vertical", fontFamily: "'DM Mono', monospace" }}
+                onKeyDown={e => { if (e.key === "Enter" && e.metaKey) parseInput(); }}
+              />
+            </div>
+
+            {/* Agent selector */}
+            <div>
+              <div style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.5rem" }}>
+                Assign to agent
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+                {AGENTS.map(a => (
+                  <button key={a.id} onClick={() => setDefaultAgent(a.id)}
+                    style={{ fontSize: "0.6rem", padding: "0.25rem 0.65rem", borderRadius: "2px", cursor: "pointer", fontFamily: "'DM Mono', monospace", letterSpacing: "0.05em", transition: "all 0.15s",
+                      background: defaultAgent === a.id ? `${a.color}22` : "transparent",
+                      border: `1px solid ${defaultAgent === a.id ? a.color : t.border}`,
+                      color: defaultAgent === a.id ? a.color : t.textMuted,
+                    }}>
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Add button */}
+            <button onClick={parseInput} disabled={!input.trim()}
+              style={{ background: t.goldDim, border: `1px solid ${t.goldBorder}`, color: t.gold, padding: "0.6rem 1rem", borderRadius: "3px", cursor: input.trim() ? "pointer" : "not-allowed", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: input.trim() ? 1 : 0.4, transition: "all 0.15s" }}>
+              Add to Queue
+            </button>
+
+            {/* Stats */}
+            {entries.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                {[
+                  ["Pending", counts.pending, t.textMuted],
+                  ["Done", counts.done, "#a8c87e"],
+                  ["Skipped", counts.skipped, t.textFaint],
+                  ["Errors", counts.error, "#c87e7e"],
+                ].map(([label, count, color]) => (
+                  <div key={label as string} style={{ padding: "0.6rem 0.75rem", background: t.bgCard, border: `1px solid ${t.borderCard}`, borderRadius: "3px" }}>
+                    <div style={{ fontSize: "0.95rem", fontWeight: 500, color: color as string }}>{count as number}</div>
+                    <div style={{ fontSize: "0.52rem", color: t.textFaint, textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "0.1rem" }}>{label as string}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Run / Stop */}
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button onClick={running ? () => { abortRef.current = true; } : runIngest}
+                disabled={!running && counts.pending === 0}
+                style={{ flex: 1, padding: "0.65rem", borderRadius: "3px", cursor: "pointer", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", fontFamily: "'DM Mono', monospace", transition: "all 0.2s",
+                  background: running ? "rgba(200,100,100,0.12)" : t.goldDim,
+                  border: `1px solid ${running ? "rgba(200,100,100,0.3)" : t.goldBorder}`,
+                  color: running ? "#c87e7e" : t.gold,
+                  opacity: !running && counts.pending === 0 ? 0.4 : 1,
+                }}>
+                {running ? (
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
+                    <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: "#c87e7e", animation: "pulse 1s infinite" }} />
+                    Stop
+                  </span>
+                ) : `Run Ingest (${counts.pending})`}
+              </button>
+              {counts.done + counts.skipped > 0 && !running && (
+                <button onClick={clearDone}
+                  style={{ padding: "0.65rem 0.85rem", borderRadius: "3px", cursor: "pointer", fontSize: "0.6rem", background: "transparent", border: `1px solid ${t.border}`, color: t.textFaint, fontFamily: "'DM Mono', monospace", letterSpacing: "0.08em" }}>
+                  Clear done
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Right — queue + log */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+            {/* Queue */}
+            <div>
+              <div style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.5rem" }}>
+                Queue — {entries.length} URL{entries.length !== 1 ? "s" : ""}
+              </div>
+              <div style={{ maxHeight: "280px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                {entries.length === 0 && (
+                  <div style={{ color: t.textVeryFaint, fontSize: "0.65rem", padding: "1.5rem", textAlign: "center", border: `1px dashed ${t.border}`, borderRadius: "4px" }}>
+                    No URLs queued yet
+                  </div>
+                )}
+                {entries.map(entry => {
+                  const agentColor = AGENTS.find(a => a.id === entry.agent_id)?.color || t.gold;
+                  const statusColor = {
+                    pending: t.textFaint,
+                    processing: t.gold,
+                    done: "#a8c87e",
+                    error: "#c87e7e",
+                    skipped: t.textFaint,
+                  }[entry.status];
+
+                  return (
+                    <div key={entry.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.45rem 0.6rem", background: t.bgCard, border: `1px solid ${entry.status === "processing" ? t.goldBorder : t.borderCard}`, borderRadius: "3px", animation: "fadeIn 0.2s ease" }}>
+                      {/* Status dot */}
+                      <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: statusColor, flexShrink: 0, animation: entry.status === "processing" ? "pulse 1s infinite" : "none" }} />
+
+                      {/* Agent badge */}
+                      <select value={entry.agent_id}
+                        onChange={e => updateEntry(entry.id, { agent_id: e.target.value as AgentId })}
+                        disabled={entry.status !== "pending"}
+                        style={{ fontSize: "0.5rem", background: "transparent", border: "none", color: agentColor, cursor: "pointer", fontFamily: "'DM Mono', monospace", padding: 0, flexShrink: 0 }}>
+                        {AGENTS.map(a => <option key={a.id} value={a.id} style={{ background: t.bgCard }}>{a.label}</option>)}
+                      </select>
+
+                      {/* URL */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "0.58rem", color: entry.status === "done" ? t.textMuted : t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {entry.title || entry.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                        </div>
+                        {entry.chunks && (
+                          <div style={{ fontSize: "0.5rem", color: "#a8c87e" }}>{entry.chunks} chunks</div>
+                        )}
+                        {entry.error && (
+                          <div style={{ fontSize: "0.5rem", color: "#c87e7e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.error}</div>
+                        )}
+                      </div>
+
+                      {/* Remove */}
+                      {entry.status === "pending" && (
+                        <button onClick={() => removeEntry(entry.id)}
+                          style={{ background: "none", border: "none", color: t.textVeryFaint, cursor: "pointer", fontSize: "0.7rem", padding: "0 0.2rem", flexShrink: 0, lineHeight: 1 }}
+                          onMouseEnter={e => (e.currentTarget.style.color = "#c87e7e")}
+                          onMouseLeave={e => (e.currentTarget.style.color = t.textVeryFaint)}>
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Log */}
+            <div>
+              <div style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.5rem" }}>
+                Log
+              </div>
+              <div style={{ height: "180px", overflowY: "auto", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: "4px", padding: "0.6rem 0.75rem" }}>
+                {log.length === 0 && (
+                  <div style={{ color: t.textVeryFaint, fontSize: "0.6rem" }}>Waiting...</div>
+                )}
+                {log.map((line, i) => (
+                  <div key={i} style={{ fontSize: "0.6rem", color: line.startsWith("  ✓") ? "#a8c87e" : line.startsWith("  ✗") ? "#c87e7e" : line.startsWith("  ↷") ? t.textFaint : t.textMuted, lineHeight: 1.7, fontFamily: "'DM Mono', monospace" }}>
+                    {line}
+                  </div>
+                ))}
+                <div ref={logEndRef} />
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ marginTop: "2rem", paddingTop: "1rem", borderTop: `1px solid ${t.border}`, fontSize: "0.55rem", color: t.textVeryFaint, letterSpacing: "0.1em" }}>
+          URLs are fetched, chunked (~1200 chars), embedded with Voyage AI, and stored in Supabase pgvector · Already-ingested URLs are skipped automatically
+        </div>
+      </div>
+    </div>
+  );
+}

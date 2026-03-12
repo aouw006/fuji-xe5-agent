@@ -125,10 +125,9 @@ export async function POST(req: NextRequest) {
           const ragChunks = await retrieveChunks(message, agent.id, 5);
           const ragContext = formatRagContext(ragChunks);
           if (ragChunks.length > 0) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "status", message: `Found ${ragChunks.length} relevant knowledge base chunks` })}
-
-`));
+            send({ type: "status", text: `📚 Found ${ragChunks.length} knowledge base chunks` });
           }
+
 
           // Step 6: Build the user message
           const userMessage = searchContext
