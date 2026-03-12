@@ -28,6 +28,15 @@ export async function POST(req: NextRequest) {
           send({ type: "agent", agentName: agent.name, agentIcon: agent.icon });
           send({ type: "status", text: `${agent.icon} ${agent.name} activated...` });
 
+          // Step 1a: Load prompt override from DB if available
+          try {
+            const { loadAgentPrompts } = await import("@/lib/memory");
+            const prompts = await loadAgentPrompts();
+            if (prompts[agent.id]) {
+              agent = { ...agent, systemPrompt: prompts[agent.id] };
+            }
+          } catch { /* use hardcoded fallback */ }
+
           // Step 1b: Check for similar past questions (async, non-blocking)
           if (isSupabaseConfigured()) {
             try {

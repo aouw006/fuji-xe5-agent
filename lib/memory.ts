@@ -138,3 +138,35 @@ export async function updateReflection(
     console.error("[updateReflection] failed:", e);
   }
 }
+
+// ─── Agent Prompt Store ───────────────────────────────────────────────────────
+
+let promptCache: Record<string, string> = {};
+
+export async function loadAgentPrompts(): Promise<Record<string, string>> {
+  if (!isSupabaseConfigured()) return {};
+  try {
+    const rows = await supabaseFetch("/agent_prompts?select=agent_id,system_prompt");
+    if (Array.isArray(rows)) {
+      promptCache = {};
+      for (const r of rows) promptCache[r.agent_id] = r.system_prompt;
+    }
+    return promptCache;
+  } catch {
+    return {};
+  }
+}
+
+export async function saveAgentPrompt(agentId: string, prompt: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  promptCache[agentId] = prompt;
+  await supabaseFetch("/agent_prompts", {
+    method: "POST",
+    body: JSON.stringify({ agent_id: agentId, system_prompt: prompt, updated_at: new Date().toISOString() }),
+    headers: { Prefer: "resolution=merge-duplicates" },
+  });
+}
+
+export function getCachedPrompt(agentId: string): string | undefined {
+  return promptCache[agentId];
+}
