@@ -148,6 +148,9 @@ export default function Dashboard() {
         <Link href="/" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s" }}>
           <Icon name="back" size={13} style={{ marginRight: "0.35rem", verticalAlign: "middle" }} />Back to Agent
         </Link>
+        <Link href="/evals" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s" }}>
+          Evals
+        </Link>
         <button onClick={toggleTheme}
           style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, width: "30px", height: "30px", borderRadius: "2px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}

@@ -286,8 +286,15 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
 
         {/* Footer */}
         <div style={{ padding: "0.85rem 1.5rem", borderTop: `1px solid ${t.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-          <div style={{ fontSize: "0.6rem", color: t.textVeryFaint, lineHeight: 1.6 }}>
-            Changes take effect on the next query.
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <div style={{ fontSize: "0.6rem", color: t.textVeryFaint, lineHeight: 1.6 }}>
+              Changes take effect on the next query.
+            </div>
+            <a href="/ingest" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", borderBottom: `1px solid ${t.border}`, paddingBottom: "1px", transition: "color 0.2s" }}
+              onMouseEnter={e => e.currentTarget.style.color = t.gold}
+              onMouseLeave={e => e.currentTarget.style.color = t.textFaint}>
+              Ingest →
+            </a>
           </div>
           <button onClick={onClose}
             style={{ background: isDark ? "rgba(200,169,110,0.1)" : "rgba(176,136,64,0.12)", border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)"}`, color: t.gold, padding: "0.35rem 1rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s" }}
