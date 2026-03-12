@@ -159,7 +159,7 @@ export default function EvalsPage() {
   }
 
   // Compute per-agent averages
-  const agentIds = [...new Set(EVALS.map(e => e.agent))];
+  const agentIds = EVALS.map(e => e.agent).filter((a, i, arr) => arr.indexOf(a) === i);
   const agentStats = agentIds.map(agentId => {
     const agentEvals = EVALS.filter(e => e.agent === agentId);
     const scored = agentEvals.filter(e => results[e.id]?.score !== undefined);
