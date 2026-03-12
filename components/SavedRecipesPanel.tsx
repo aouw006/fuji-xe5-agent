@@ -63,7 +63,7 @@ function RecipeRow({ recipe, isDark, onDelete }: { recipe: Recipe; isDark: boole
           userSelect: "none", WebkitUserSelect: "none",
         } as React.CSSProperties}
         onMouseEnter={e => e.currentTarget.style.background = isDark ? "rgba(200,169,110,0.04)" : "rgba(176,136,64,0.06)"}
-        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+        onMouseLeave={e => { lp.onMouseLeave(); e.currentTarget.style.background = "transparent"; }}
       >
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: "0.7rem", color: t.text, fontFamily: "Playfair Display, serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

@@ -57,7 +57,6 @@ function SessionRow({ session, isCurrent, isLoading, isDark, onLoad, onDelete }:
       disabled={isLoading}
       onMouseDown={lp.onMouseDown}
       onMouseUp={lp.onMouseUp}
-      onMouseLeave={lp.onMouseLeave}
       onTouchStart={lp.onTouchStart}
       onTouchEnd={lp.onTouchEnd}
       onTouchMove={lp.onTouchMove}
@@ -69,7 +68,7 @@ function SessionRow({ session, isCurrent, isLoading, isDark, onLoad, onDelete }:
         WebkitUserSelect: "none",
       } as React.CSSProperties}
       onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = isDark ? "rgba(200,169,110,0.04)" : "rgba(176,136,64,0.06)"; }}
-      onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = "transparent"; }}
+      onMouseLeave={e => { lp.onMouseLeave(); if (!isCurrent) e.currentTarget.style.background = "transparent"; }}
     >
       <div style={{ fontSize: "0.7rem", color: t.text, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {isLoading ? "Loading…" : session.title}
