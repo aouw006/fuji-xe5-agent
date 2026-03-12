@@ -13,6 +13,8 @@ import { parseRecipeFromText, ParsedRecipe } from "@/lib/recipeParser";
 import { darkTheme, lightTheme, Theme } from "@/lib/theme";
 import AboutModal from "@/components/AboutModal";
 import SettingsModal from "@/components/SettingsModal";
+import ShotOfTheDay from "@/components/ShotOfTheDay";
+import RecipeComparison from "@/components/RecipeComparison";
 
 interface Source { title: string; url: string; }
 interface Message {
@@ -22,6 +24,7 @@ interface Message {
   agentName?: string;
   agentIcon?: string;
   recipe?: ParsedRecipe;
+  followups?: string[];
 }
 interface HistoryEntry { role: "user" | "assistant"; content: string; }
 
@@ -57,6 +60,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +120,7 @@ export default function Home() {
       let fullText = "";
       let sources: Source[] = [];
       let agentInfo: { name: string; icon: string } | null = null;
+      let pendingFollowups: string[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -137,6 +142,8 @@ export default function Home() {
             } else if (data.type === "text") {
               fullText += data.text;
               setStreaming(fullText);
+            } else if (data.type === "followups") {
+              pendingFollowups = data.suggestions || [];
             } else if (data.type === "done") {
               const detectedRecipe = parseRecipeFromText(fullText);
               setMessages((prev) => [...prev, {
@@ -146,6 +153,7 @@ export default function Home() {
                 agentName: agentInfo?.name,
                 agentIcon: agentInfo?.icon,
                 recipe: detectedRecipe || undefined,
+                followups: pendingFollowups.length > 0 ? pendingFollowups : undefined,
               }]);
               setHistory((prev) => [
                 ...prev,
@@ -224,6 +232,7 @@ export default function Home() {
       <HistorySidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLoadSession={loadSession} currentSessionId={sessionId} isDark={isDark} />
       <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} isDark={isDark} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} isDark={isDark} />
+      <RecipeComparison open={compareOpen} onClose={() => setCompareOpen(false)} isDark={isDark} />
 
       {/* Header */}
       <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${t.border}`, background: t.bgHeader, backdropFilter: "blur(16px)", padding: "0.75rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", transition: "background 0.3s, border-color 0.3s" }}>
@@ -244,6 +253,12 @@ export default function Home() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
           <TokenBar />
+          {/* Compare recipes button */}
+          <button onClick={() => setCompareOpen(true)} style={headerBtn} title="Compare recipes"
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
+            ⇄
+          </button>
           {/* Settings button */}
           <button onClick={() => setSettingsOpen(true)} style={headerBtn} title="Settings"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
@@ -288,6 +303,8 @@ export default function Home() {
             <p style={{ color: t.textMuted, maxWidth: "460px", margin: "0 auto 2rem", lineHeight: 1.8, fontSize: "0.875rem" }}>
               Each question is routed to a specialist agent — film recipes, settings, locations, gear, or community. It searches multiple rounds, reads full articles, and streams expert answers.
             </p>
+
+            <ShotOfTheDay isDark={isDark} onPrompt={(p) => handleQuery(p)} />
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: "0.55rem", marginBottom: "1.5rem" }}>
               {CATEGORIES.map((cat) => (
@@ -343,7 +360,23 @@ export default function Home() {
                   </div>
                 )}
               </div>
+
+              {/* Follow-up suggestions */}
+              {msg.role === "assistant" && msg.followups && msg.followups.length > 0 && i === messages.length - 1 && (
+                <div style={{ marginTop: "0.75rem", display: "flex", flexWrap: "wrap", gap: "0.4rem", paddingLeft: "0.25rem" }}>
+                  <div style={{ width: "100%", fontSize: "0.52rem", color: t.textVeryFaint, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.1rem" }}>Follow-up</div>
+                  {msg.followups.map((q, fi) => (
+                    <button key={fi} onClick={() => handleQuery(q)}
+                      style={{ background: t.bgButton, border: `1px solid ${isDark ? "rgba(200,169,110,0.12)" : "rgba(176,136,64,0.18)"}`, color: t.textMuted, padding: "0.3rem 0.7rem", borderRadius: "3px", cursor: "pointer", fontSize: "0.68rem", lineHeight: 1.4, textAlign: "left", transition: "all 0.2s", maxWidth: "320px" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isDark ? "rgba(200,169,110,0.12)" : "rgba(176,136,64,0.18)"; e.currentTarget.style.color = t.textMuted; }}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+          </div>
           ))}
 
           {/* Streaming */}

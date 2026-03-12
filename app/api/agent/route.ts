@@ -55,10 +55,12 @@ export async function POST(req: NextRequest) {
             send({ type: "status", text: "Planning search strategy..." });
             const queries = agent.searchQueries(message);
 
+            const callSeed = Date.now() % 997;
             const sources = await multiRoundSearch(
               queries,
               agent.priorityDomains,
-              (msg) => send({ type: "status", text: msg })
+              (msg) => send({ type: "status", text: msg }),
+              callSeed
             );
 
             sourceMeta = sources.map((s) => ({ title: s.title, url: s.url }));
@@ -90,11 +92,11 @@ export async function POST(req: NextRequest) {
 
           // Step 7: Build system prompt with memory injected
           const systemWithMemory = agent.systemPrompt + memorySummary +
-            "\n\nIMPORTANT: If the user asks about previous answers or recipes, refer to the PREVIOUS CONVERSATION CONTEXT above. Always give complete, detailed answers.";
+            "\n\nIMPORTANT: If the user asks about previous answers or recipes, refer to the PREVIOUS CONVERSATION CONTEXT above. Always give complete, detailed answers. FRESHNESS: Do not repeat information, recipes, or advice you have already given in this conversation — if the user is asking a similar question again, find different examples, different sources, or a different angle on the topic.";
 
           // Step 8: Stream Groq response — clean messages, no history contamination
           const groqStream = await groq.chat.completions.create({
-            model: "llama3-8b-8192",
+            model: "llama-3.3-70b-versatile",
             messages: [
               { role: "system", content: systemWithMemory },
               { role: "user", content: userMessage },
@@ -118,6 +120,34 @@ export async function POST(req: NextRequest) {
             await saveMessage(sessionId, "user", message);
             await saveMessage(sessionId, "assistant", fullResponse);
             await trackTokens(sessionId, userMessage + systemWithMemory, fullResponse);
+          }
+
+          // Step 10: Generate follow-up suggestions
+          try {
+            const followupStream = await groq.chat.completions.create({
+              model: "llama-3.3-70b-versatile",
+              messages: [
+                {
+                  role: "system",
+                  content: "You are a Fujifilm X-E5 expert assistant. Given the question and answer below, generate exactly 3 short follow-up questions the user might naturally want to ask next. Return ONLY a JSON array of 3 strings, no explanation, no markdown, no numbering. Example: [\"How does Velvia compare to Classic Chrome?\", \"What grain setting works best?\", \"Can I use this recipe for portraits?\"]"
+                },
+                {
+                  role: "user",
+                  content: `Question: ${message}\n\nAnswer summary: ${fullResponse.slice(0, 600)}`
+                }
+              ],
+              max_tokens: 200,
+              temperature: 0.8,
+              stream: false,
+            });
+            const raw = followupStream.choices[0]?.message?.content || "[]";
+            const clean = raw.replace(/```json|```/g, "").trim();
+            const suggestions = JSON.parse(clean);
+            if (Array.isArray(suggestions) && suggestions.length > 0) {
+              send({ type: "followups", suggestions: suggestions.slice(0, 3) });
+            }
+          } catch {
+            // follow-ups are optional, don't fail the request
           }
 
           send({ type: "done" });
