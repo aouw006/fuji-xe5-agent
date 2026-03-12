@@ -6,6 +6,7 @@ import { getSession, saveMessage, isSupabaseConfigured } from "@/lib/memory";
 import type { MessageMeta } from "@/lib/memory";
 import { trackTokens, estimateTokens, getAgentSources } from "@/lib/analytics";
 import { retrieveChunks, formatRagContext } from "@/lib/rag";
+import { runComparisonAgent } from "@/lib/agentLoop";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -49,6 +50,37 @@ export async function POST(req: NextRequest) {
 
           // Step 3: Check if this is a memory-only question (no search needed)
           const isMemoryQuestion = /what (was|were|did|have)|last (recipe|setting|answer|time)|remember|previous|earlier|before|we (discussed|talked)/i.test(message);
+
+          // ── AGENTIC MODE for comparison agent ──────────────────────────────
+          if (agent.id === "comparison" && !isMemoryQuestion) {
+            const memorySummary = memoryHistory.length > 0
+              ? "\n\n[PREVIOUS CONVERSATION CONTEXT]\n" +
+                memoryHistory.slice(-12).map(m =>
+                  `${m.role === "user" ? "User asked" : "You answered"}: ${m.content.slice(0, 500)}${m.content.length > 500 ? "..." : ""}`
+                ).join("\n\n") + "\n[END PREVIOUS CONTEXT]\n"
+              : "";
+
+            const fullResponse = await runComparisonAgent(message, agent.systemPrompt, memorySummary, send);
+
+            // Stream the final answer word by word for a natural feel
+            const words = fullResponse.split(" ");
+            for (const word of words) {
+              send({ type: "text", text: word + " " });
+              await new Promise(r => setTimeout(r, 8));
+            }
+
+            // Save to memory
+            if (sessionId && isSupabaseConfigured()) {
+              const meta: MessageMeta = { agentId: agent.id, tokensUsed: estimateTokens(message + fullResponse) };
+              await saveMessage(sessionId, "user", message, meta);
+              await saveMessage(sessionId, "assistant", fullResponse, meta);
+              await trackTokens(sessionId, estimateTokens(message + fullResponse), agent.id);
+            }
+
+            controller.close();
+            return;
+          }
+          // ── END AGENTIC MODE ───────────────────────────────────────────────
 
           let searchContext = "";
           let sourceMeta: { title: string; url: string }[] = [];

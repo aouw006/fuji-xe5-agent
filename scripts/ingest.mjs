@@ -2,8 +2,8 @@
  * RAG Ingestion Script
  * Run with: node scripts/ingest.mjs
  *
- * Fetches curated URLs, splits into chunks, embeds with Voyage AI,
- * stores in Supabase pgvector table.
+ * Auto-discovers URLs from sitemaps (handles nested sitemap indexes),
+ * splits into chunks, embeds with Voyage AI, stores in Supabase pgvector.
  */
 
 import { config } from "dotenv";
@@ -22,31 +22,108 @@ if (!SUPABASE_URL || !SUPABASE_KEY || !VOYAGE_KEY) {
   process.exit(1);
 }
 
-// ─── Curated sources ──────────────────────────────────────────────────────────
-// Add/remove URLs here. agent_id routes chunks to the right specialist agent.
-const SOURCES = [
-  // Film Recipes — FujiXWeekly
+// ─── Sitemap sources ──────────────────────────────────────────────────────────
+// filter: URL must contain at least one of these strings (case-insensitive)
+// agent_id: which specialist agent these chunks belong to
+const SITEMAPS = [
+  {
+    // Only X-E5 specific pages and film simulation recipes
+    url: "https://fujixweekly.com/sitemap.xml",
+    filter: ["x-e5", "x-trans-v-film-simulation-recipe", "film-simulation-recipe"],
+    agent_id: "film_recipes",
+    agent_id_overrides: {
+      "settings": "camera_settings",
+      "review": "community",
+      "lens": "gear",
+      "accessory": "gear",
+    },
+  },
+  {
+    // Only recipe-specific pages on film.recipes
+    url: "https://film.recipes/sitemap.xml",
+    filter: ["film-recipe", "film-recipes/", "nightwalker", "vintage-mood"],
+    agent_id: "film_recipes",
+  },
+];
+
+// Manual URLs to always include (fallback / supplements)
+const MANUAL_SOURCES = [
   { url: "https://fujixweekly.com/recipes/", agent_id: "film_recipes" },
-  { url: "https://fujixweekly.com/2025/07/07/kodak-vericolor-vps-fujifilm-x-e5-x-trans-v-film-simulation-recipe/", agent_id: "film_recipes" },
-  { url: "https://fujixweekly.com/2025/06/27/summer-sun-fujifilm-x-e5-x-trans-v-film-simulation-recipe/", agent_id: "film_recipes" },
-  { url: "https://fujixweekly.com/2025/10/28/vivid-velvia-fujifilm-x-e5-x-trans-v-film-simulation-recipe/", agent_id: "film_recipes" },
-
-  // Film Recipes — film.recipes
-  { url: "https://film.recipes/blog/user-photo-galleries-and-recipes/vintage-mood-user-images-gallery/", agent_id: "film_recipes" },
-  { url: "https://film.recipes/2025/11/21/nightwalker-street-film-recipe-for-night-lights/", agent_id: "film_recipes" },
-  { url: "https://film.recipes/film-recipe-themes/fujicolor-film-recipes/", agent_id: "film_recipes" },
-  { url: "https://film.recipes/film-recipe-themes/classic-chrome-film-recipes/", agent_id: "film_recipes" },
-
-  // General / Review
   { url: "https://fujixweekly.com/2025/07/30/review-fujifilm-x-e5-pancakes-recipes/", agent_id: "community" },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Sitemap parsing ──────────────────────────────────────────────────────────
 
-/** Fetch a URL and return plain text (strips HTML tags) */
+async function fetchXml(url) {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; RAG-ingestion/1.0)" },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
+  return res.text();
+}
+
+function extractTags(xml, tag) {
+  const regex = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "gi");
+  const matches = [];
+  let m;
+  while ((m = regex.exec(xml)) !== null) matches.push(m[1].trim());
+  return matches;
+}
+
+/** Recursively resolve a sitemap — handles both index and regular sitemaps */
+async function resolveSitemap(url, depth = 0) {
+  if (depth > 3) return []; // safety limit
+  console.log(`  ${"  ".repeat(depth)}📋 Fetching sitemap: ${url}`);
+
+  let xml;
+  try {
+    xml = await fetchXml(url);
+  } catch (e) {
+    console.warn(`  ⚠ Failed to fetch sitemap ${url}: ${e.message}`);
+    return [];
+  }
+
+  // Sitemap index — contains child sitemaps
+  if (xml.includes("<sitemapindex")) {
+    const childUrls = extractTags(xml, "loc")
+      .filter(u => u.endsWith(".xml") || u.includes("sitemap"))
+      .filter(u => !u.includes("image-sitemap") && !u.includes("video-sitemap"));
+    console.log(`  ${"  ".repeat(depth)}↳ Index with ${childUrls.length} child sitemaps`);
+    const allUrls = [];
+    for (const childUrl of childUrls) {
+      const urls = await resolveSitemap(childUrl, depth + 1);
+      allUrls.push(...urls);
+      await sleep(300);
+    }
+    return allUrls;
+  }
+
+  // Regular sitemap — contains page URLs
+  const urls = extractTags(xml, "loc").filter(u => !u.endsWith(".xml"));
+  console.log(`  ${"  ".repeat(depth)}↳ Found ${urls.length} URLs`);
+  return urls;
+}
+
+/** Filter URLs by keyword list */
+function filterUrls(urls, keywords) {
+  return urls.filter(url =>
+    keywords.some(kw => url.toLowerCase().includes(kw.toLowerCase()))
+  );
+}
+
+/** Determine agent_id from URL using overrides */
+function getAgentId(url, defaultAgentId, overrides = {}) {
+  for (const [keyword, agentId] of Object.entries(overrides)) {
+    if (url.toLowerCase().includes(keyword)) return agentId;
+  }
+  return defaultAgentId;
+}
+
+// ─── Text processing ──────────────────────────────────────────────────────────
+
 async function fetchText(url) {
   try {
-    console.log(`  Fetching ${url}`);
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; RAG-ingestion/1.0)" },
       signal: AbortSignal.timeout(15000),
@@ -54,161 +131,170 @@ async function fetchText(url) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
 
-    // Strip scripts, styles, nav, footer, header elements
     let text = html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<style[\s\S]*?<\/style>/gi, "")
       .replace(/<nav[\s\S]*?<\/nav>/gi, "")
       .replace(/<footer[\s\S]*?<\/footer>/gi, "")
       .replace(/<header[\s\S]*?<\/header>/gi, "")
-      .replace(/<[^>]+>/g, " ")           // strip remaining tags
+      .replace(/<aside[\s\S]*?<\/aside>/gi, "")
+      .replace(/<[^>]+>/g, " ")
       .replace(/&nbsp;/g, " ")
       .replace(/&amp;/g, "&")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
-      .replace(/\s{2,}/g, " ")            // collapse whitespace
+      .replace(/\s{2,}/g, " ")
       .trim();
 
-    // Extract title
     const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-    const title = titleMatch ? titleMatch[1].trim() : url;
+    const title = titleMatch ? titleMatch[1].replace(/\s*[|\-–].*/,"").trim() : url;
 
     return { text, title };
   } catch (e) {
-    console.warn(`  ⚠ Failed to fetch ${url}: ${e.message}`);
+    console.warn(`    ⚠ Failed: ${e.message}`);
     return null;
   }
 }
 
-/** Split text into overlapping chunks of ~300 tokens (~1200 chars) */
 function chunkText(text, chunkSize = 1200, overlap = 200) {
   const chunks = [];
   let start = 0;
   while (start < text.length) {
     const end = Math.min(start + chunkSize, text.length);
     const chunk = text.slice(start, end).trim();
-    if (chunk.length > 100) chunks.push(chunk); // skip tiny chunks
+    if (chunk.length > 100) chunks.push(chunk);
     start += chunkSize - overlap;
   }
   return chunks;
 }
 
-/** Embed an array of strings with Voyage AI (batch up to 128 at a time) */
+// ─── Voyage embeddings ────────────────────────────────────────────────────────
+
 async function embedBatch(texts) {
   const res = await fetch("https://api.voyageai.com/v1/embeddings", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${VOYAGE_KEY}`,
+      Authorization: `Bearer ${VOYAGE_KEY}`,
     },
     body: JSON.stringify({
-      model: "voyage-3-lite",   // free tier, 512 dimensions, fast
+      model: "voyage-3-lite",
       input: texts,
       input_type: "document",
     }),
   });
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Voyage API error: ${err}`);
-  }
-
+  if (!res.ok) throw new Error(`Voyage API error: ${await res.text()}`);
   const data = await res.json();
   return data.data.map(d => d.embedding);
 }
 
-/** Upsert chunks into Supabase */
+// ─── Supabase ─────────────────────────────────────────────────────────────────
+
+async function deleteExisting(url) {
+  await fetch(`${SUPABASE_URL}/rest/v1/document_chunks?url=eq.${encodeURIComponent(url)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${SUPABASE_KEY}`, apikey: SUPABASE_KEY },
+  });
+}
+
 async function upsertChunks(rows) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/document_chunks`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "apikey": SUPABASE_KEY,
-      "Prefer": "resolution=merge-duplicates",
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      apikey: SUPABASE_KEY,
+      Prefer: "resolution=merge-duplicates",
     },
     body: JSON.stringify(rows),
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase upsert error: ${err}`);
-  }
+  if (!res.ok) throw new Error(`Supabase upsert error: ${await res.text()}`);
 }
 
-/** Delete existing chunks for a URL before re-ingesting */
-async function deleteExisting(url) {
-  await fetch(`${SUPABASE_URL}/rest/v1/document_chunks?url=eq.${encodeURIComponent(url)}`, {
-    method: "DELETE",
-    headers: {
-      "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "apikey": SUPABASE_KEY,
-    },
+async function getExistingUrls() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/document_chunks?select=url&limit=1000`, {
+    headers: { Authorization: `Bearer ${SUPABASE_KEY}`, apikey: SUPABASE_KEY },
   });
+  if (!res.ok) return new Set();
+  const rows = await res.json();
+  return new Set(rows.map(r => r.url));
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-async function main() {
-  console.log(`\n🚀 Starting ingestion of ${SOURCES.length} sources\n`);
-  let totalChunks = 0;
 
-  for (const source of SOURCES) {
-    console.log(`\n📄 ${source.url}`);
-
-    // Fetch page text
-    const result = await fetchText(source.url);
-    if (!result) continue;
-
-    const { text, title } = result;
-    console.log(`  Title: ${title}`);
-    console.log(`  Text length: ${text.length} chars`);
-
-    // Split into chunks
-    const chunks = chunkText(text);
-    console.log(`  Chunks: ${chunks.length}`);
-
-    if (chunks.length === 0) {
-      console.warn("  ⚠ No chunks produced, skipping");
-      continue;
-    }
-
-    // Embed in batches of 64
-    const BATCH = 64;
-    const allEmbeddings = [];
-    for (let i = 0; i < chunks.length; i += BATCH) {
-      const batch = chunks.slice(i, i + BATCH);
-      process.stdout.write(`  Embedding batch ${Math.floor(i/BATCH)+1}/${Math.ceil(chunks.length/BATCH)}...`);
-      const embeddings = await embedBatch(batch);
-      allEmbeddings.push(...embeddings);
-      process.stdout.write(" ✓\n");
-    }
-
-    // Delete old chunks for this URL
-    await deleteExisting(source.url);
-
-    // Build rows
-    const rows = chunks.map((content, i) => ({
-      url: source.url,
-      title,
-      chunk_index: i,
-      content,
-      embedding: allEmbeddings[i],
-      agent_id: source.agent_id,
-    }));
-
-    // Upsert to Supabase
-    await upsertChunks(rows);
-    console.log(`  ✅ Stored ${rows.length} chunks`);
-    totalChunks += rows.length;
-
-    // Small delay to be polite to servers
-    await new Promise(r => setTimeout(r, 1000));
+async function ingestUrl(url, agentId, existingUrls, stats) {
+  if (existingUrls.has(url)) {
+    stats.skipped++;
+    return;
   }
 
-  console.log(`\n✨ Done! Total chunks stored: ${totalChunks}\n`);
+  process.stdout.write(`  → ${url.slice(0, 80)}... `);
+  const result = await fetchText(url);
+  if (!result) { stats.failed++; return; }
+
+  const { text, title } = result;
+  const chunks = chunkText(text);
+  if (chunks.length === 0) { process.stdout.write("(no content)\n"); stats.failed++; return; }
+
+  // Embed in batches of 64
+  const allEmbeddings = [];
+  for (let i = 0; i < chunks.length; i += 64) {
+    const embeddings = await embedBatch(chunks.slice(i, i + 64));
+    allEmbeddings.push(...embeddings);
+  }
+
+  await deleteExisting(url);
+  await upsertChunks(chunks.map((content, i) => ({
+    url, title, chunk_index: i, content,
+    embedding: allEmbeddings[i], agent_id: agentId,
+  })));
+
+  process.stdout.write(`✅ ${chunks.length} chunks\n`);
+  stats.ingested++;
+  stats.totalChunks += chunks.length;
 }
 
-main().catch(e => {
-  console.error("Fatal error:", e);
-  process.exit(1);
-});
+async function main() {
+  console.log("\n🚀 Starting sitemap-driven ingestion\n");
+  const stats = { ingested: 0, skipped: 0, failed: 0, totalChunks: 0 };
+
+  // Load already-ingested URLs to skip re-ingestion
+  process.stdout.write("Loading existing URLs from Supabase... ");
+  const existingUrls = await getExistingUrls();
+  console.log(`${existingUrls.size} already ingested\n`);
+
+  // ── Sitemap sources ──
+  for (const source of SITEMAPS) {
+    console.log(`\n📡 Sitemap: ${source.url}`);
+    const allUrls = await resolveSitemap(source.url);
+    const filtered = filterUrls(allUrls, source.filter);
+    console.log(`  Matched ${filtered.length} / ${allUrls.length} URLs after filtering\n`);
+
+    for (const url of filtered) {
+      const agentId = getAgentId(url, source.agent_id, source.agent_id_overrides);
+      await ingestUrl(url, agentId, existingUrls, stats);
+      await sleep(800); // polite delay between requests
+    }
+  }
+
+  // ── Manual sources ──
+  if (MANUAL_SOURCES.length > 0) {
+    console.log(`\n📄 Manual sources (${MANUAL_SOURCES.length})`);
+    for (const source of MANUAL_SOURCES) {
+      await ingestUrl(source.url, source.agent_id, existingUrls, stats);
+      await sleep(800);
+    }
+  }
+
+  console.log(`\n✨ Done!`);
+  console.log(`   Ingested: ${stats.ingested} pages (${stats.totalChunks} chunks)`);
+  console.log(`   Skipped:  ${stats.skipped} (already in DB)`);
+  console.log(`   Failed:   ${stats.failed}\n`);
+}
+
+main().catch(e => { console.error("Fatal error:", e); process.exit(1); });
