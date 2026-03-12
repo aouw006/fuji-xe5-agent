@@ -85,7 +85,7 @@ function Card({ title, children, span = 1 }: { title: string; children: React.Re
 function StatPill({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div style={{ textAlign: "center" }}>
-      <div style={{ fontSize: "1.6rem", fontWeight: 700, color: GOLD, fontFamily: "'DM Mono', monospace" }}>{value}</div>
+      <div style={{ fontSize: "1.6rem", fontWeight: 700, color: GOLD, fontFamily: "DM Mono, monospace" }}>{value}</div>
       <div style={{ fontSize: "0.62rem", color: TEXT_DIM, marginTop: "0.2rem" }}>{label}</div>
       {sub && <div style={{ fontSize: "0.55rem", color: TEXT_FAINT, marginTop: "0.1rem" }}>{sub}</div>}
     </div>
@@ -124,16 +124,16 @@ export default function Dashboard() {
   const budgetColor = budgetPct > 90 ? "#e05555" : budgetPct > 70 ? "#e0a855" : "#4caf7d";
 
   return (
-    <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "DM Sans, sans-serif" }}>
       {/* Grain overlay */}
       <div className="grain-overlay" />
 
       {/* Header */}
       <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${BORDER}`, background: "rgba(13,11,8,0.92)", backdropFilter: "blur(16px)", padding: "0.7rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div style={{ width: "28px", height: "28px", borderRadius: "50%", border: `1.5px solid ${GOLD}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.48rem", color: GOLD, background: "rgba(200,169,110,0.06)", fontFamily: "'DM Mono', monospace" }}>XE5</div>
+          <div style={{ width: "28px", height: "28px", borderRadius: "50%", border: `1.5px solid ${GOLD}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.48rem", color: GOLD, background: "rgba(200,169,110,0.06)", fontFamily: "DM Mono, monospace" }}>XE5</div>
           <div>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.9rem", fontWeight: 700, color: TEXT }}>Dashboard</div>
+            <div style={{ fontFamily: "Playfair Display, serif", fontSize: "0.9rem", fontWeight: 700, color: TEXT }}>Dashboard</div>
             <div style={{ fontSize: "0.5rem", color: TEXT_DIM, letterSpacing: "0.1em", textTransform: "uppercase" }}>X-E5 Research Agent · Analytics</div>
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function Dashboard() {
                 { label: "Saved Recipes", value: String(data.totalRecipes), sub: "all time" },
               ].map((s, i) => (
                 <div key={i} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: "4px", padding: "1rem", textAlign: "center" }}>
-                  <div style={{ fontSize: "1.4rem", fontWeight: 700, color: i === 1 ? budgetColor : GOLD, fontFamily: "'DM Mono', monospace" }}>{s.value}</div>
+                  <div style={{ fontSize: "1.4rem", fontWeight: 700, color: i === 1 ? budgetColor : GOLD, fontFamily: "DM Mono, monospace" }}>{s.value}</div>
                   <div style={{ fontSize: "0.6rem", color: TEXT_DIM, marginTop: "0.2rem" }}>{s.label}</div>
                   {s.sub && <div style={{ fontSize: "0.52rem", color: TEXT_FAINT, marginTop: "0.15rem" }}>{s.sub}</div>}
                 </div>
@@ -178,7 +178,7 @@ export default function Dashboard() {
               <div style={{ flex: 1, height: "4px", background: "#1a1610", borderRadius: "2px", overflow: "hidden" }}>
                 <div style={{ width: `${budgetPct}%`, height: "100%", background: budgetColor, borderRadius: "2px", transition: "width 0.6s ease" }} />
               </div>
-              <span style={{ fontSize: "0.65rem", color: budgetColor, fontFamily: "'DM Mono', monospace", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: "0.65rem", color: budgetColor, fontFamily: "DM Mono, monospace", whiteSpace: "nowrap" }}>
                 ${data.monthCost.toFixed(4)} / ${data.budgetUsd.toFixed(2)}
               </span>
             </div>
@@ -250,8 +250,8 @@ export default function Dashboard() {
                       return (
                         <div key={agent.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                           <span style={{ fontSize: "0.65rem", color: TEXT_DIM, width: "120px", flexShrink: 0 }}>{AGENT_LABELS[agent.id] || agent.id}</span>
-                          <span style={{ fontSize: "0.65rem", color: GOLD, fontFamily: "'DM Mono', monospace", width: "70px" }}>${avgCost.toFixed(5)}</span>
-                          <span style={{ fontSize: "0.6rem", color: TEXT_FAINT, fontFamily: "'DM Mono', monospace" }}>{avgMs > 0 ? `~${avgMs}s avg` : ""}</span>
+                          <span style={{ fontSize: "0.65rem", color: GOLD, fontFamily: "DM Mono, monospace", width: "70px" }}>${avgCost.toFixed(5)}</span>
+                          <span style={{ fontSize: "0.6rem", color: TEXT_FAINT, fontFamily: "DM Mono, monospace" }}>{avgMs > 0 ? `~${avgMs}s avg` : ""}</span>
                         </div>
                       );
                     })}
@@ -290,7 +290,7 @@ export default function Dashboard() {
                         <div key={agent.id} style={{ background: "#0d0b08", border: `1px solid ${BORDER}`, borderRadius: "3px", padding: "0.65rem 0.85rem" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
                             <span style={{ fontSize: "0.7rem", color: TEXT }}>{AGENT_LABELS[agent.id] || agent.id}</span>
-                            <span style={{ fontSize: "0.65rem", color: GOLD, fontFamily: "'DM Mono', monospace" }}>${agent.cost.toFixed(5)}</span>
+                            <span style={{ fontSize: "0.65rem", color: GOLD, fontFamily: "DM Mono, monospace" }}>${agent.cost.toFixed(5)}</span>
                           </div>
                           <div style={{ display: "flex", gap: "1rem" }}>
                             <span style={{ fontSize: "0.58rem", color: TEXT_DIM }}>{q?.count || 0} queries</span>
@@ -354,7 +354,7 @@ export default function Dashboard() {
                         }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.25rem" }}>
                           <span style={{ fontSize: "0.62rem", color: AGENT_COLORS[entry.agent_id] || TEXT_DIM }}>{AGENT_LABELS[entry.agent_id] || entry.agent_id}</span>
-                          <span style={{ fontSize: "0.55rem", color: TEXT_FAINT, fontFamily: "'DM Mono', monospace" }}>
+                          <span style={{ fontSize: "0.55rem", color: TEXT_FAINT, fontFamily: "DM Mono, monospace" }}>
                             {entry.tokens_used > 0 ? `${(entry.tokens_used / 1000).toFixed(1)}k tok` : ""}
                             {entry.response_time_ms > 0 ? ` · ${(entry.response_time_ms / 1000).toFixed(1)}s` : ""}
                           </span>
@@ -381,7 +381,7 @@ export default function Dashboard() {
                         ].map(([k, v]) => (
                           <div key={k}>
                             <div style={{ fontSize: "0.52rem", color: TEXT_FAINT, letterSpacing: "0.08em", textTransform: "uppercase" }}>{k}</div>
-                            <div style={{ fontSize: "0.7rem", color: GOLD, fontFamily: "'DM Mono', monospace" }}>{v}</div>
+                            <div style={{ fontSize: "0.7rem", color: GOLD, fontFamily: "DM Mono, monospace" }}>{v}</div>
                           </div>
                         ))}
                       </div>
@@ -409,7 +409,7 @@ export default function Dashboard() {
 
                     {selectedPrompt.prompt_sent && (
                       <Card title="System prompt sent to Groq">
-                        <div style={{ fontSize: "0.62rem", color: TEXT_DIM, background: "#0d0b08", border: `1px solid ${BORDER}`, borderRadius: "3px", padding: "0.75rem", maxHeight: "300px", overflowY: "auto", lineHeight: 1.7, whiteSpace: "pre-wrap", fontFamily: "'DM Mono', monospace" }}>
+                        <div style={{ fontSize: "0.62rem", color: TEXT_DIM, background: "#0d0b08", border: `1px solid ${BORDER}`, borderRadius: "3px", padding: "0.75rem", maxHeight: "300px", overflowY: "auto", lineHeight: 1.7, whiteSpace: "pre-wrap", fontFamily: "DM Mono, monospace" }}>
                           {selectedPrompt.prompt_sent}
                         </div>
                       </Card>
