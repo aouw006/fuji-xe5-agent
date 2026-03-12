@@ -188,7 +188,7 @@ export async function multiRoundSearch(
   const variedQueries = queries.map((q, i) => varyQuery(q, seed + i));
 
   // Exclude heavily-overrepresented domains
-  const excludeDomains = [...seenDomains.entries()]
+  const excludeDomains = Array.from(seenDomains.entries())
     .filter(([, count]) => count >= 3)
     .map(([domain]) => domain)
     .slice(0, 5);
