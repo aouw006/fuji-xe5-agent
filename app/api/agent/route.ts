@@ -98,6 +98,43 @@ export async function POST(req: NextRequest) {
               storeQuestionEmbedding(sessionId, message).catch(() => {});
             }
 
+            // Reflection — same as standard path
+            try {
+              const reflectionRes = await groq.chat.completions.create({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                  {
+                    role: "system",
+                    content: `You are a quality evaluator for a Fujifilm X-E5 photography assistant. Score the answer on these 4 criteria:
+1. Answered the question directly
+2. Specific & actionable (concrete specs, values, prices — not vague)
+3. Covered both/all items being compared
+4. Used photography expertise
+
+Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what was good and what was missing>", "criteria": {"answered": <1-3>, "specific": <1-3>, "prices": <1-3>, "expertise": <1-3>}}`
+                  },
+                  { role: "user", content: `Question: ${message}\n\nAnswer: ${fullResponse.slice(0, 1500)}` }
+                ],
+                max_tokens: 200,
+                temperature: 0.1,
+                stream: false,
+              });
+              const rawRef = reflectionRes.choices[0]?.message?.content || "{}";
+              console.log("[reflection-comparison] raw:", rawRef.slice(0, 200));
+              const reflection = JSON.parse(rawRef.replace(/```json|```/g, "").trim());
+              if (reflection.score) {
+                if (sessionId && isSupabaseConfigured()) {
+                  const { updateReflection } = await import("@/lib/memory");
+                  await updateReflection(sessionId, reflection.score, reflection.critique || "");
+                }
+                send({ type: "reflection", score: reflection.score, critique: reflection.critique, criteria: reflection.criteria });
+              }
+            } catch (e) {
+              console.error("[reflection-comparison] failed:", e);
+            }
+
+            send({ type: "tokens", count: estimateTokens(message + fullResponse), exact: false });
+            send({ type: "done" });
             controller.close();
             return;
           }
