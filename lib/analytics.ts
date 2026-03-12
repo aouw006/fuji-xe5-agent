@@ -160,6 +160,52 @@ export async function getAllSavedRecipes(): Promise<SavedRecipe[]> {
   } catch { return []; }
 }
 
+// ─── Monthly Token Usage ──────────────────────────────────────────────────────
+
+// Groq pricing: llama-3.3-70b-versatile
+// Input: $0.59 / 1M tokens  Output: $0.79 / 1M tokens
+// We track combined, so use blended rate ~$0.69 / 1M tokens
+const BLENDED_COST_PER_TOKEN = 0.00000069; // $0.69 per 1M
+const MONTHLY_BUDGET_USD = 3.00;
+
+export async function getMonthlyTokenUsage(): Promise<{
+  tokensUsed: number;
+  costUsd: number;
+  budgetUsd: number;
+  pct: number;
+  dailyBreakdown: { date: string; tokens: number; cost: number }[];
+}> {
+  try {
+    const now = new Date();
+    const firstOfMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
+    const data = await supabaseFetch(
+      `/token_usage?date=gte.${firstOfMonth}&select=tokens_used,date&order=date.asc`
+    );
+
+    if (!Array.isArray(data)) throw new Error("No data");
+
+    // Aggregate by date
+    const byDate: Record<string, number> = {};
+    for (const row of data) {
+      byDate[row.date] = (byDate[row.date] || 0) + row.tokens_used;
+    }
+
+    const dailyBreakdown = Object.entries(byDate).map(([date, tokens]) => ({
+      date,
+      tokens,
+      cost: tokens * BLENDED_COST_PER_TOKEN,
+    }));
+
+    const tokensUsed = dailyBreakdown.reduce((s, d) => s + d.tokens, 0);
+    const costUsd = tokensUsed * BLENDED_COST_PER_TOKEN;
+    const pct = Math.min((costUsd / MONTHLY_BUDGET_USD) * 100, 100);
+
+    return { tokensUsed, costUsd, budgetUsd: MONTHLY_BUDGET_USD, pct, dailyBreakdown };
+  } catch {
+    return { tokensUsed: 0, costUsd: 0, budgetUsd: MONTHLY_BUDGET_USD, pct: 0, dailyBreakdown: [] };
+  }
+}
+
 // ─── Custom Agent Sources ─────────────────────────────────────────────────────
 
 export interface AgentSource {

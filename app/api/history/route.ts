@@ -1,4 +1,4 @@
-import { getAllSessions, getSessionMessages, getDailyTokenUsage } from "@/lib/analytics";
+import { getAllSessions, getSessionMessages, getDailyTokenUsage, getMonthlyTokenUsage } from "@/lib/analytics";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -7,6 +7,11 @@ export async function GET(req: Request) {
 
   if (type === "tokens") {
     const usage = await getDailyTokenUsage();
+    return Response.json(usage);
+  }
+
+  if (type === "monthly") {
+    const usage = await getMonthlyTokenUsage();
     return Response.json(usage);
   }
 

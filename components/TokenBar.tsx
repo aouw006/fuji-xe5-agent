@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 
-interface TokenData {
-  used: number;
-  limit: number;
+interface MonthlyData {
+  tokensUsed: number;
+  costUsd: number;
+  budgetUsd: number;
+  pct: number;
 }
 
 function getResetCountdown(): string {
@@ -17,13 +19,17 @@ function getResetCountdown(): string {
   return `${hours}h ${mins}m`;
 }
 
+function getMonthName(): string {
+  return new Date().toLocaleString("en-AU", { month: "short" });
+}
+
 export default function TokenBar() {
-  const [data, setData] = useState<TokenData | null>(null);
+  const [data, setData] = useState<MonthlyData | null>(null);
   const [resetIn, setResetIn] = useState(getResetCountdown());
 
   useEffect(() => {
-    fetchTokens();
-    const dataInterval = setInterval(fetchTokens, 120000);
+    fetchUsage();
+    const dataInterval = setInterval(fetchUsage, 120000);
     const countdownInterval = setInterval(() => setResetIn(getResetCountdown()), 60000);
     return () => {
       clearInterval(dataInterval);
@@ -31,9 +37,9 @@ export default function TokenBar() {
     };
   }, []);
 
-  const fetchTokens = async () => {
+  const fetchUsage = async () => {
     try {
-      const res = await fetch("/api/history?type=tokens");
+      const res = await fetch("/api/history?type=monthly");
       const d = await res.json();
       setData(d);
     } catch {}
@@ -41,25 +47,24 @@ export default function TokenBar() {
 
   if (!data) return null;
 
-  const pct = Math.min((data.used / data.limit) * 100, 100);
-  const remaining = data.limit - data.used;
-  const isLow = pct > 80;
-  const isCritical = pct > 95;
+  const isLow = data.pct > 70;
+  const isCritical = data.pct > 90;
   const barColor = isCritical ? "#e05555" : isLow ? "#e0a855" : "#4caf7d";
+  const remaining = data.budgetUsd - data.costUsd;
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.2rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-          <span style={{ fontSize: "0.58rem", color: isCritical ? "#e05555" : "#4a3e2a", letterSpacing: "0.08em", fontFamily: "'DM Mono', monospace" }}>
-            {remaining.toLocaleString()} left
+          <span style={{ fontSize: "0.58rem", color: isCritical ? "#e05555" : "#6b5d45", letterSpacing: "0.06em", fontFamily: "'DM Mono', monospace" }}>
+            ${data.costUsd.toFixed(3)} / ${data.budgetUsd.toFixed(2)}
           </span>
-          <div style={{ width: "60px", height: "3px", background: "#1a1610", borderRadius: "2px", overflow: "hidden" }}>
-            <div style={{ width: `${pct}%`, height: "100%", background: barColor, borderRadius: "2px", transition: "width 0.5s ease" }} />
+          <div style={{ width: "52px", height: "3px", background: "#1a1610", borderRadius: "2px", overflow: "hidden" }}>
+            <div style={{ width: `${data.pct}%`, height: "100%", background: barColor, borderRadius: "2px", transition: "width 0.5s ease" }} />
           </div>
         </div>
-        <div style={{ fontSize: "0.52rem", color: "#2e2818", letterSpacing: "0.08em", fontFamily: "'DM Mono', monospace" }}>
-          resets in {resetIn}
+        <div style={{ fontSize: "0.5rem", color: "#2e2818", letterSpacing: "0.07em", fontFamily: "'DM Mono', monospace" }}>
+          ${remaining.toFixed(3)} left · {getMonthName()} · resets {resetIn}
         </div>
       </div>
     </div>
