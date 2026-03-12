@@ -310,7 +310,14 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
   }
 
   // Synthesise final answer using the agent's full system prompt
-  let finalAnswer = researchSummary;
+  let finalAnswer = researchSummary
+    // Strip any trailing JSON the agent leaked into the answer text
+    ? researchSummary
+        .replace(/\n*`{0,3}json[\s\S]*$/i, "")   // ```json ... blocks
+        .replace(/\n*Next action:[\s\S]*$/i, "")   // "Next action:" sections
+        .replace(/\n*\{[\s\S]*"action"[\s\S]*\}[\s\S]*$/i, "") // raw JSON objects
+        .trim()
+    : "";
 
   if (!finalAnswer) {
     send({ type: "status", text: "Synthesising findings..." });
@@ -323,7 +330,7 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
     const synthRes = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        { role: "system", content: systemPrompt + memorySummary },
+        { role: "system", content: systemPrompt + memorySummary + "\n\nIMPORTANT: Write your answer in clean markdown only. Never include JSON, code blocks, 'Next action:', or any structured data in your response." },
         {
           role: "user",
           content: researchContext
