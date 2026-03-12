@@ -109,28 +109,32 @@ function summarise(text: string, len = 220): string {
 
 
 
-const PLANNER_SYSTEM = `You are a research agent for Fujifilm X-E5 photography. Gather information step by step before writing a final answer.
+const PLANNER_SYSTEM = `You are a research agent for Fujifilm X-E5 photography. You research questions step by step, evaluating what you find before deciding what to do next.
 
-Each response must be a single JSON object with a "reasoning" field explaining your decision, plus one action:
+Each response must be a single JSON object. Available actions:
 
-Search the web:
-{"action": "search_web", "query": "specific query", "reasoning": "why you're searching this"}
+{"action": "search_knowledge_base", "query": "...", "reasoning": "..."}
+{"action": "search_web", "query": "...", "reasoning": "..."}
+{"action": "fetch_url", "url": "https://...", "reasoning": "..."}
+{"action": "answer", "text": "your full markdown answer", "reasoning": "..."}
 
-Search knowledge base:
-{"action": "search_knowledge_base", "query": "query", "reasoning": "why you're checking the knowledge base"}
+DECISION STRATEGY:
+1. Start with search_knowledge_base — check curated Fujifilm articles first
+2. Evaluate the result:
+   - If results are RELEVANT and detailed → you may have enough, consider answering or doing one more targeted search
+   - If results are WEAK or off-topic → search the web instead
+   - If a search result contains a URL that looks highly relevant (e.g. a specific lens review) → use fetch_url to read it in full
+3. For comparisons: get specs for EACH item, then prices
+4. For prices: always search_web with "AUD" in the query
+5. Use fetch_url when you spot a promising URL in search results — it gives you full article content, not just snippets
+6. Answer when you have concrete specs, prices, or recommendations — don't keep searching if you have enough
 
-Read a URL:
-{"action": "fetch_url", "url": "https://...", "reasoning": "why this URL is worth reading in full"}
+WHAT GOOD REASONING LOOKS LIKE:
+- "The knowledge base returned weak results about X, so I'll search the web for current reviews"
+- "Search result [2] links to a full lens review — I'll fetch that for detailed specs"
+- "I now have specs for both lenses and AUD prices — I have enough to write a complete comparison"
 
-Final answer:
-{"action": "answer", "text": "your complete markdown answer", "reasoning": "why you have enough to answer"}
-
-Rules:
-- Always start with search_knowledge_base
-- Use search_web for prices (include AUD) and recent reviews
-- After 2-3 searches you should have enough to answer
-- Never repeat the same search
-- Respond with valid JSON only — no other text`;
+Respond with valid JSON only. No other text.`;
 
 // ─── Main loop ────────────────────────────────────────────────────────────────
 
@@ -202,9 +206,24 @@ export async function runComparisonAgent(
     });
 
     researchMessages.push({ role: "assistant", content: raw });
+
+    // Extract URLs from web search results so the agent can choose to fetch them
+    const urlsFound = toolResult.match(/URL: (https?:\/\/[^\s\n]+)/g)
+      ?.map(u => u.replace("URL: ", ""))
+      .slice(0, 3) || [];
+
+    const urlHint = urlsFound.length > 0
+      ? `\n\nURLs found in results (you can fetch any of these for full content):\n${urlsFound.map((u, i) => `[${i + 1}] ${u}`).join("\n")}`
+      : "";
+
+    // Signal result quality to help the agent evaluate
+    const resultQuality = toolResult.length < 200 || toolResult.includes("No relevant results")
+      ? "\n\n⚠ Results were weak or empty — consider a different search or approach."
+      : `\n\n✓ Got ${toolResult.split("---").length} result(s).`;
+
     researchMessages.push({
       role: "user",
-      content: `Tool result:\n${toolResult.slice(0, 2000)}\n\nContinue researching or write your final answer as JSON.`,
+      content: `Tool result:\n${toolResult.slice(0, 2000)}${urlHint}${resultQuality}\n\nEvaluate what you found. Then decide your next action as JSON.`,
     });
   }
 
