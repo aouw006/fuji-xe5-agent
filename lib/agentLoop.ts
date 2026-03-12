@@ -169,19 +169,41 @@ Always call final_answer when ready — never just stop tool calling.`,
 
   let steps = 0;
   let finalAnswer = "";
+  let toolFailures = 0;
 
   while (steps < MAX_STEPS) {
     steps++;
     send({ type: "status", text: `Step ${steps}/${MAX_STEPS}...` });
 
-    const response = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages,
-      tools: TOOLS,
-      tool_choice: "auto",
-      max_tokens: 1000,
-      temperature: 0.3, // lower temp for more consistent tool use
-    });
+    let response;
+    try {
+      response = await groq.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages,
+        tools: TOOLS,
+        tool_choice: toolFailures >= 1 ? "none" : "auto", // disable tools after a failure
+        max_tokens: toolFailures >= 1 ? 2000 : 1000,
+        temperature: 0.3,
+      });
+    } catch (err: unknown) {
+      // Groq returns 400 tool_use_failed when it can't form a valid tool call
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("tool_use_failed") || msg.includes("400")) {
+        toolFailures++;
+        send({ type: "status", text: "Switching to direct answer mode..." });
+        // Remove the last assistant message if it was a bad tool call
+        if (messages[messages.length - 1]?.role === "assistant") {
+          messages.pop();
+        }
+        // Ask for a direct answer without tools
+        messages.push({
+          role: "user",
+          content: "Based on what you know, write a complete, well-structured answer to the original question.",
+        });
+        continue;
+      }
+      throw err;
+    }
 
     const choice = response.choices[0];
     const assistantMsg = choice.message;
@@ -199,11 +221,18 @@ Always call final_answer when ready — never just stop tool calling.`,
       let toolArgs: Record<string, string> = {};
       try {
         toolArgs = JSON.parse(toolCall.function.arguments);
-      } catch {}
+      } catch {
+        // Bad JSON arguments — skip this tool call, note failure
+        toolFailures++;
+        messages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: "Error: could not parse tool arguments. Please answer directly.",
+        });
+        continue;
+      }
 
       const result = await executeTool(toolName, toolArgs, send);
-
-      // Add tool result to message history
       messages.push({
         role: "tool",
         tool_call_id: toolCall.id,
@@ -212,7 +241,7 @@ Always call final_answer when ready — never just stop tool calling.`,
     }
   }
 
-  // If we hit the step limit without a final answer, ask for one explicitly
+  // If we hit the step limit or never got a final answer, force one without tools
   if (!finalAnswer) {
     send({ type: "status", text: "Synthesising findings..." });
     messages.push({
