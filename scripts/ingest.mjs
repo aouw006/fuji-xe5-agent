@@ -146,9 +146,12 @@ async function fetchText(url) {
       .replace(/\s{2,}/g, " ")
       // Strip non-UTF-8 / non-printable characters
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "")
-      // Normalise unicode to NFC form
+      .replace(/\uFFFD/g, "")
+      .replace(/[\uD800-\uDFFF]/g, "")
       .normalize("NFC")
       .trim();
+    // Force re-encode through Buffer to catch any remaining invalid sequences
+    text = Buffer.from(text, "utf8").toString("utf8");
 
     const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
     const title = titleMatch ? titleMatch[1].replace(/\s*[|\-–].*/,"").trim() : url;
@@ -245,10 +248,17 @@ async function ingestUrl(url, agentId, existingUrls, stats) {
   const chunks = chunkText(text);
   if (chunks.length === 0) { process.stdout.write("(no content)\n"); stats.failed++; return; }
 
-  // Sanitise chunks before embedding
-  const safeChunks = chunks.map(ch =>
-    ch.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "").normalize("NFC")
-  );
+  // Aggressively sanitise chunks — force through Buffer to strip any invalid UTF-8
+  const safeChunks = chunks.map(ch => {
+    // Round-trip through Buffer to drop any invalid byte sequences
+    const clean = Buffer.from(ch, "utf8").toString("utf8");
+    return clean
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "")  // control chars
+      .replace(/\uFFFD/g, "")                                          // replacement char (bad bytes)
+      .replace(/[\uD800-\uDFFF]/g, "")                                // lone surrogates
+      .normalize("NFC")
+      .trim();
+  }).filter(ch => ch.length > 20); // drop any chunks that became too short
 
   // Embed in batches of 64
   const allEmbeddings = [];
