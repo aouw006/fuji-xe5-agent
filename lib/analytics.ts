@@ -286,7 +286,7 @@ export async function getDashboardData() {
       agent_id: string;
       prompt_sent: string;
       sources_used: { title: string; url: string }[];
-      agent_steps: { step: number; tool: string; input: string; result_summary: string }[];
+      agent_steps: { step: number; tool: string; input: string; reasoning: string; result_summary: string }[];
       tokens_used: number;
       response_time_ms: number;
       created_at: string;

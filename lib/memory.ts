@@ -61,7 +61,8 @@ export interface AgentStep {
   step: number;
   tool: string;
   input: string;
-  result_summary: string; // short summary, not full content
+  reasoning: string; // why the agent chose this action
+  result_summary: string;
 }
 
 export interface MessageMeta {

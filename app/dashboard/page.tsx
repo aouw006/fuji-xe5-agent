@@ -41,7 +41,7 @@ interface DashboardData {
     agent_id: string;
     prompt_sent: string;
     sources_used: { title: string; url: string }[];
-    agent_steps: { step: number; tool: string; input: string; result_summary: string }[];
+    agent_steps: { step: number; tool: string; input: string; reasoning: string; result_summary: string }[];
     tokens_used: number;
     response_time_ms: number;
     created_at: string;
@@ -418,30 +418,55 @@ export default function Dashboard() {
                       </Card>
                     )}
 
-                    {selectedPrompt.agent_steps?.length > 0 && (
-                      <Card t={t} title={`Agentic research log — ${selectedPrompt.agent_steps.length} steps`}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-                          {selectedPrompt.agent_steps.map((s, i) => (
-                            <div key={i} style={{ display: "flex", gap: "0.75rem", padding: "0.6rem 0", borderBottom: i < selectedPrompt.agent_steps.length - 1 ? `1px solid ${t.border}` : "none" }}>
-                              <div style={{ width: "18px", height: "18px", borderRadius: "50%", border: `1px solid ${isDark ? "rgba(200,169,110,0.3)" : "rgba(176,136,64,0.4)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: t.gold, flexShrink: 0, fontFamily: "DM Mono, monospace" }}>
-                                {s.step}
-                              </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.2rem" }}>
-                                  <span style={{ fontSize: "0.55rem", color: t.gold, border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.3)"}`, borderRadius: "2px", padding: "0.05rem 0.3rem", fontFamily: "DM Mono, monospace", textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0 }}>
-                                    {s.tool.replace(/_/g, " ")}
-                                  </span>
-                                  <span style={{ fontSize: "0.65rem", color: t.text, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    {s.input}
-                                  </span>
+                    {selectedPrompt.agent_id === "comparison" && (
+                      <Card t={t} title={
+                        selectedPrompt.agent_steps?.length > 0
+                          ? `Agentic research log — ${selectedPrompt.agent_steps.length} steps`
+                          : "Agentic research log — no steps recorded"
+                      }>
+                        {(!selectedPrompt.agent_steps || selectedPrompt.agent_steps.length === 0) ? (
+                          <div style={{ fontSize: "0.68rem", color: t.textMuted, lineHeight: 1.6 }}>
+                            No steps found for this query. This happens for queries run before the agentic log was added, or if the <code style={{ fontFamily: "DM Mono, monospace", background: t.bg, padding: "0.1rem 0.3rem", borderRadius: "2px" }}>agent_steps</code> column is missing from Supabase.
+                            <br /><br />
+                            Run in Supabase SQL editor:<br />
+                            <code style={{ fontFamily: "DM Mono, monospace", fontSize: "0.6rem", background: t.bg, padding: "0.4rem 0.6rem", borderRadius: "3px", display: "block", marginTop: "0.4rem", border: `1px solid ${t.border}` }}>
+                              ALTER TABLE conversations ADD COLUMN IF NOT EXISTS agent_steps jsonb;
+                            </code>
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+                            {selectedPrompt.agent_steps.map((s, i) => (
+                              <div key={i} style={{ display: "flex", gap: "0.75rem", padding: "0.75rem 0", borderBottom: i < selectedPrompt.agent_steps.length - 1 ? `1px solid ${t.border}` : "none" }}>
+                                <div style={{ width: "18px", height: "18px", borderRadius: "50%", border: `1px solid ${isDark ? "rgba(200,169,110,0.3)" : "rgba(176,136,64,0.4)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.5rem", color: t.gold, flexShrink: 0, fontFamily: "DM Mono, monospace", marginTop: "0.1rem" }}>
+                                  {s.step}
                                 </div>
-                                <div style={{ fontSize: "0.62rem", color: t.textMuted, lineHeight: 1.5, fontFamily: "DM Mono, monospace" }}>
-                                  {s.result_summary}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  {/* Tool badge + query */}
+                                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.3rem" }}>
+                                    <span style={{ fontSize: "0.52rem", color: t.gold, border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.3)"}`, borderRadius: "2px", padding: "0.05rem 0.3rem", fontFamily: "DM Mono, monospace", textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0 }}>
+                                      {s.tool.replace(/_/g, " ")}
+                                    </span>
+                                    <span style={{ fontSize: "0.68rem", color: t.text, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                      {s.input}
+                                    </span>
+                                  </div>
+                                  {/* Reasoning */}
+                                  {s.reasoning && (
+                                    <div style={{ fontSize: "0.63rem", color: t.textMuted, lineHeight: 1.55, marginBottom: "0.3rem", fontStyle: "italic" }}>
+                                      {s.reasoning}
+                                    </div>
+                                  )}
+                                  {/* Result preview */}
+                                  {s.result_summary && (
+                                    <div style={{ fontSize: "0.6rem", color: t.textVeryFaint, lineHeight: 1.5, fontFamily: "DM Mono, monospace", paddingLeft: "0.5rem", borderLeft: `2px solid ${t.border}` }}>
+                                      {s.result_summary}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        )}
                       </Card>
                     )}
 

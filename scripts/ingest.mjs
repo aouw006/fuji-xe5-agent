@@ -143,6 +143,11 @@ async function fetchText(url) {
       .replace(/&amp;/g, "&")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#8217;/g, "'").replace(/&#8216;/g, "'")
+      .replace(/&#8220;/g, '"').replace(/&#8221;/g, '"')
+      .replace(/&#8211;/g, "–").replace(/&#8212;/g, "—")
+      .replace(/&#038;/g, "&").replace(/&#\d+;/g, "")
       .replace(/\s{2,}/g, " ")
       // Strip non-UTF-8 / non-printable characters
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "")

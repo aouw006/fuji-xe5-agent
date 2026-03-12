@@ -58,10 +58,10 @@ async function searchKnowledgeBase(query: string, send: (d: object) => void): Pr
 // ─── Decision parsing ─────────────────────────────────────────────────────────
 
 type Decision =
-  | { action: "search_web"; query: string }
-  | { action: "search_knowledge_base"; query: string }
-  | { action: "fetch_url"; url: string }
-  | { action: "answer"; text: string };
+  | { action: "search_web"; query: string; reasoning?: string }
+  | { action: "search_knowledge_base"; query: string; reasoning?: string }
+  | { action: "fetch_url"; url: string; reasoning?: string }
+  | { action: "answer"; text: string; reasoning?: string };
 
 function parseDecision(raw: string): Decision | null {
   const match = raw.match(/\{[\s\S]*\}/);
@@ -85,27 +85,41 @@ function decodeHtml(str: string): string {
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#\d+;/g, "");
 }
 
-function summarise(text: string, len = 200): string {
+function summarise(text: string, len = 220): string {
   const clean = decodeHtml(text);
-  if (clean.length <= len) return clean;
-  // Try to cut at a sentence boundary
-  const cut = clean.slice(0, len);
+  // Skip the [1] Title\n prefix — show the actual content line
+  const lines = clean.split("\n").map(l => l.trim()).filter(l => l.length > 20 && !l.match(/^\[\d+\]/) && !l.startsWith("URL:") && !l.startsWith("(http"));
+  const body = lines.join(" ");
+  if (body.length <= len) return body || clean.slice(0, len);
+  const cut = body.slice(0, len);
   const lastPeriod = cut.lastIndexOf(".");
-  return lastPeriod > len * 0.6 ? cut.slice(0, lastPeriod + 1) : cut + "…";
+  return lastPeriod > len * 0.5 ? cut.slice(0, lastPeriod + 1) : cut + "…";
 }
 
 
 
 const PLANNER_SYSTEM = `You are a research agent for Fujifilm X-E5 photography. Gather information step by step before writing a final answer.
 
-Each response must be a single JSON object. Choose one action:
+Each response must be a single JSON object with a "reasoning" field explaining your decision, plus one action:
 
-Search the web: {"action": "search_web", "query": "specific query"}
-Search knowledge base: {"action": "search_knowledge_base", "query": "query"}
-Read a URL: {"action": "fetch_url", "url": "https://..."}
-Final answer: {"action": "answer", "text": "your complete markdown answer"}
+Search the web:
+{"action": "search_web", "query": "specific query", "reasoning": "why you're searching this"}
 
-Start with search_knowledge_base. Use search_web for prices (include AUD). After 2-3 searches, write your answer. Never repeat a search. Respond with JSON only.`;
+Search knowledge base:
+{"action": "search_knowledge_base", "query": "query", "reasoning": "why you're checking the knowledge base"}
+
+Read a URL:
+{"action": "fetch_url", "url": "https://...", "reasoning": "why this URL is worth reading in full"}
+
+Final answer:
+{"action": "answer", "text": "your complete markdown answer", "reasoning": "why you have enough to answer"}
+
+Rules:
+- Always start with search_knowledge_base
+- Use search_web for prices (include AUD) and recent reviews
+- After 2-3 searches you should have enough to answer
+- Never repeat the same search
+- Respond with valid JSON only — no other text`;
 
 // ─── Main loop ────────────────────────────────────────────────────────────────
 
@@ -172,6 +186,7 @@ export async function runComparisonAgent(
       step: agentSteps.length + 1,
       tool: decision.action,
       input: toolInput,
+      reasoning: decision.reasoning || "",
       result_summary: summarise(toolResult),
     });
 
