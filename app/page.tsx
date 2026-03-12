@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -342,6 +343,11 @@ export default function Home() {
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
             ?
           </button>
+          <Link href="/dashboard" style={{ ...headerBtn, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }} title="Dashboard"
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.gold; (e.currentTarget as HTMLElement).style.color = t.gold; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.border; (e.currentTarget as HTMLElement).style.color = t.textFaint; }}>
+            ◈
+          </Link>
           <button onClick={() => setSettingsOpen(true)} style={headerBtn} title="Settings"
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>

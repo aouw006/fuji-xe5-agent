@@ -3,6 +3,7 @@ import Groq from "groq-sdk";
 import { detectSubAgent } from "@/lib/agents";
 import { multiRoundSearch } from "@/lib/search";
 import { getSession, saveMessage, isSupabaseConfigured } from "@/lib/memory";
+import type { MessageMeta } from "@/lib/memory";
 import { trackTokens, estimateTokens, getAgentSources } from "@/lib/analytics";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
         };
 
         try {
+          const startTime = Date.now();
           // Step 1: Detect sub-agent
           let agent = detectSubAgent(message);
           send({ type: "agent", agentName: agent.name, agentIcon: agent.icon });
@@ -117,9 +119,18 @@ export async function POST(req: NextRequest) {
 
           // Step 9: Save clean Q&A to memory + track token usage
           if (sessionId && isSupabaseConfigured()) {
+            const responseTimeMs = Date.now() - startTime;
+            const tokensEst = estimateTokens(userMessage + systemWithMemory + fullResponse);
+            const meta: MessageMeta = {
+              agent_id: agent.id,
+              prompt_sent: systemWithMemory.slice(0, 4000),
+              sources_used: sourceMeta,
+              tokens_used: tokensEst,
+              response_time_ms: responseTimeMs,
+            };
             await saveMessage(sessionId, "user", message);
-            await saveMessage(sessionId, "assistant", fullResponse);
-            await trackTokens(sessionId, userMessage + systemWithMemory, fullResponse);
+            await saveMessage(sessionId, "assistant", fullResponse, meta);
+            await trackTokens(sessionId, userMessage + systemWithMemory, fullResponse, agent.id);
           }
 
           // Step 10: Generate follow-up suggestions

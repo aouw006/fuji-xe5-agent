@@ -57,17 +57,35 @@ export async function getSession(sessionId: string): Promise<ConversationMessage
   }
 }
 
+export interface MessageMeta {
+  agent_id?: string;
+  prompt_sent?: string;
+  sources_used?: { title: string; url: string }[];
+  tokens_used?: number;
+  response_time_ms?: number;
+}
+
 export async function saveMessage(
   sessionId: string,
   role: "user" | "assistant",
-  content: string
+  content: string,
+  meta?: MessageMeta
 ): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
   try {
     await supabaseFetch("/conversations", {
       method: "POST",
-      body: JSON.stringify({ session_id: sessionId, role, content }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        role,
+        content,
+        ...(meta?.agent_id && { agent_id: meta.agent_id }),
+        ...(meta?.prompt_sent && { prompt_sent: meta.prompt_sent }),
+        ...(meta?.sources_used && { sources_used: JSON.stringify(meta.sources_used) }),
+        ...(meta?.tokens_used && { tokens_used: meta.tokens_used }),
+        ...(meta?.response_time_ms && { response_time_ms: meta.response_time_ms }),
+      }),
     });
   } catch {
     // Silently fail — memory is optional
