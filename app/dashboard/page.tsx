@@ -201,7 +201,7 @@ export default function Dashboard() {
                   background: "transparent",
                   border: "none",
                   borderBottom: activeTab === tab ? `2px solid ${t.gold}` : "2px solid transparent",
-                  color: activeTab === tab ? t.gold : TEXT_DIM,
+                  color: activeTab === tab ? t.gold : t.textMuted,
                   padding: "0.5rem 1rem",
                   cursor: "pointer",
                   fontSize: "0.68rem",
