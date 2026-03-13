@@ -11,7 +11,7 @@ import MessageRenderer from "@/components/MessageRenderer";
 import HistorySidebar from "@/components/HistorySidebar";
 import TokenBar from "@/components/TokenBar";
 import RecipeCard from "@/components/RecipeCard";
-import { parseRecipeFromText, ParsedRecipe } from "@/lib/recipeParser";
+import { parseAllRecipesFromText, ParsedRecipe } from "@/lib/recipeParser";
 import { darkTheme, lightTheme, Theme } from "@/lib/theme";
 import AboutModal from "@/components/AboutModal";
 import SettingsModal from "@/components/SettingsModal";
@@ -25,7 +25,7 @@ interface Message {
   sources?: Source[];
   agentName?: string;
   agentIcon?: string;
-  recipe?: ParsedRecipe;
+  recipes?: ParsedRecipe[];
   followups?: string[];
   reflectionScore?: number;
   reflectionCritique?: string;
@@ -254,14 +254,14 @@ export default function Home() {
               setSessionTokens(prev => prev + (data.count || 0));
               if (data.exact) setTokensExact(true);
             } else if (data.type === "done") {
-              const detectedRecipe = parseRecipeFromText(fullText);
+              const detectedRecipes = parseAllRecipesFromText(fullText);
               setMessages((prev) => [...prev, {
                 role: "assistant",
                 content: fullText,
                 sources,
                 agentName: agentInfo?.name,
                 agentIcon: agentInfo?.icon,
-                recipe: detectedRecipe || undefined,
+                recipes: detectedRecipes.length > 0 ? detectedRecipes : undefined,
                 followups: pendingFollowups.length > 0 ? pendingFollowups : undefined,
                 reflectionScore: pendingReflection?.score,
                 reflectionCritique: pendingReflection?.critique,
@@ -383,6 +383,11 @@ export default function Home() {
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
             <Icon name="question" size={14} />
           </button>
+          <Link href="/digest" style={{ ...headerBtn, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }} title="Fuji Daily"
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.gold; (e.currentTarget as HTMLElement).style.color = t.gold; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.border; (e.currentTarget as HTMLElement).style.color = t.textFaint; }}>
+            <span style={{ fontSize: "0.75rem", lineHeight: 1 }}>⊞</span>
+          </Link>
           <Link href="/dashboard" style={{ ...headerBtn, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }} title="Dashboard"
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.gold; (e.currentTarget as HTMLElement).style.color = t.gold; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.border; (e.currentTarget as HTMLElement).style.color = t.textFaint; }}>
@@ -468,8 +473,12 @@ export default function Home() {
               <div style={{ maxWidth: msg.role === "user" ? "70%" : "100%", background: msg.role === "user" ? t.bgCardUser : t.bgCard, border: `1px solid ${msg.role === "user" ? (isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)") : t.borderCard}`, borderRadius: "4px", padding: "0.9rem 1.15rem", transition: "background 0.3s, border-color 0.3s" }}>
                 {msg.role === "assistant" ? <MessageRenderer text={msg.content} /> : <span style={{ fontSize: "0.875rem", color: t.text }}>{msg.content}</span>}
 
-                {msg.role === "assistant" && msg.recipe && (
-                  <RecipeCard recipe={msg.recipe} sessionId={sessionId} />
+                {msg.role === "assistant" && msg.recipes && msg.recipes.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.5rem" }}>
+                    {msg.recipes.map((recipe, i) => (
+                      <RecipeCard key={i} recipe={recipe} sessionId={sessionId} />
+                    ))}
+                  </div>
                 )}
 
                 {msg.sources && msg.sources.length > 0 && (
