@@ -1,8 +1,8 @@
 "use client";
 import Icon from "@/components/Icon";
-
 import { useState, useEffect } from "react";
 import RecipeCard, { RecipeData } from "./RecipeCard";
+import RecipeSimulator from "./RecipeSimulator";
 import { darkTheme, lightTheme } from "@/lib/theme";
 
 interface SavedRecipe extends RecipeData {
@@ -23,6 +23,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) fetchRecipes();
@@ -124,7 +125,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
               return (
                 <button key={recipe.id} onClick={() => setSelected(recipe.id)}
                   style={{
-                    width: "100%", textAlign: "left", padding: "0.85rem 1.1rem",
+                    width: "100%", textAlign: "left", padding: "0",
                     background: isSelected ? (isDark ? "rgba(200,169,110,0.1)" : "rgba(176,136,64,0.12)") : "transparent",
                     border: "none",
                     borderLeft: `3px solid ${isSelected ? t.gold : "transparent"}`,
@@ -133,19 +134,33 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
                   }}
                   onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = isDark ? "rgba(200,169,110,0.04)" : "rgba(176,136,64,0.06)"; }}
                   onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}>
-                  <div style={{ fontSize: "0.6rem", color: t.textFaint, letterSpacing: "0.08em", marginBottom: "0.2rem", textTransform: "uppercase" }}>
-                    {i + 1} of {recipes.length}
-                  </div>
-                  <div style={{ fontSize: "0.82rem", fontFamily: "'Playfair Display', serif", color: isSelected ? t.text : t.textMuted, lineHeight: 1.3, marginBottom: "0.25rem" }}>
-                    {recipe.name}
-                  </div>
-                  {filmSim && (
-                    <div style={{ fontSize: "0.62rem", color: isSelected ? t.gold : t.textFaint, fontFamily: "'DM Mono', monospace" }}>
-                      {filmSim.value}
-                    </div>
+                  {/* Thumbnail */}
+                  {previewImage && (
+                    <RecipeSimulator
+                      settings={recipe.settings || []}
+                      recipeName={recipe.name}
+                      t={t}
+                      isDark={isDark}
+                      previewImage={previewImage}
+                      onImageUpload={setPreviewImage}
+                      compact
+                    />
                   )}
-                  <div style={{ fontSize: "0.55rem", color: t.textVeryFaint, marginTop: "0.3rem" }}>
-                    {new Date(recipe.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  <div style={{ padding: "0.65rem 1.1rem" }}>
+                    <div style={{ fontSize: "0.6rem", color: t.textFaint, letterSpacing: "0.08em", marginBottom: "0.2rem", textTransform: "uppercase" }}>
+                      {i + 1} of {recipes.length}
+                    </div>
+                    <div style={{ fontSize: "0.82rem", fontFamily: "'Playfair Display', serif", color: isSelected ? t.text : t.textMuted, lineHeight: 1.3, marginBottom: "0.25rem" }}>
+                      {recipe.name}
+                    </div>
+                    {filmSim && (
+                      <div style={{ fontSize: "0.62rem", color: isSelected ? t.gold : t.textFaint, fontFamily: "'DM Mono', monospace" }}>
+                        {filmSim.value}
+                      </div>
+                    )}
+                    <div style={{ fontSize: "0.55rem", color: t.textVeryFaint, marginTop: "0.3rem" }}>
+                      {new Date(recipe.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </div>
                   </div>
                 </button>
               );
@@ -162,6 +177,15 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
                   alreadySaved={true}
                   savedId={selectedRecipe.id}
                   onDeleted={() => handleDeleted(selectedRecipe.id)}
+                />
+
+                <RecipeSimulator
+                  settings={selectedRecipe.settings || []}
+                  recipeName={selectedRecipe.name}
+                  t={t}
+                  isDark={isDark}
+                  previewImage={previewImage}
+                  onImageUpload={setPreviewImage}
                 />
 
                 {recipes.length > 1 && (
