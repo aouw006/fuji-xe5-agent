@@ -57,6 +57,7 @@ const MANUAL_SOURCES = [
   { url: "https://fujixweekly.com/recipes/", agent_id: "film_recipes" },
   { url: "https://fujixweekly.com/2025/07/30/review-fujifilm-x-e5-pancakes-recipes/", agent_id: "community" },
   { url: "https://fujixweekly.com/fujifilm-x-e5/", agent_id: "community" },
+    { url: "https://www.fujirumors.com/", agent_id: "community" },
   { url: "https://fujixweekly.com/fujifilm-x-mount-lens-guide/", agent_id: "gear" },
   // Lenses
   { url: "https://www.fujivsfuji.com/recommended-kits", agent_id: "gear" },

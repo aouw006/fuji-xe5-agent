@@ -154,12 +154,17 @@ Respond with valid JSON only. No other text.`;
 
 // ─── Main loop ────────────────────────────────────────────────────────────────
 
+export interface SourceEntry {
+  title: string;
+  url: string;
+}
+
 export async function runComparisonAgent(
   message: string,
   systemPrompt: string,
   memorySummary: string,
   send: (data: object) => void
-): Promise<{ answer: string; steps: AgentStep[] }> {
+): Promise<{ answer: string; steps: AgentStep[]; sources: SourceEntry[] }> {
   send({ type: "status", text: "🤔 Planning research strategy..." });
 
   const researchMessages: { role: "user" | "assistant"; content: string }[] = [
@@ -171,6 +176,9 @@ export async function runComparisonAgent(
 
   // Track how many times each tool has been used
   const toolCounts = { search_knowledge_base: 0, search_web: 0, fetch_url: 0 };
+
+  // Collect titled sources discovered during research
+  const discoveredSources = new Map<string, string>(); // url -> title
 
   function getMissingTools(): string | null {
     const missing: string[] = [];
@@ -270,10 +278,15 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
       toolInput = decision.query;
       toolResult = await searchWeb(decision.query, send);
       toolCounts.search_web++;
+      // Extract title+URL pairs from search results
+      const titleMatches = [...toolResult.matchAll(/\[\d+\] (.+)\nURL: (https?:\/\/[^\s\n]+)/g)];
+      for (const m of titleMatches) discoveredSources.set(m[2], m[1].trim());
     } else if (decision.action === "search_knowledge_base") {
       toolInput = decision.query;
       toolResult = await searchKnowledgeBase(decision.query, send);
       toolCounts.search_knowledge_base++;
+      const titleMatches = [...toolResult.matchAll(/\[\d+\] (.+)\nURL: (https?:\/\/[^\s\n]+)/g)];
+      for (const m of titleMatches) discoveredSources.set(m[2], m[1].trim());
     } else if (decision.action === "fetch_url") {
       toolInput = decision.url;
       toolResult = await fetchUrl(decision.url, send);
@@ -319,6 +332,18 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
     });
   }
 
+  // Build the approved sources list for the synthesiser
+  const approvedSources = [...discoveredSources.entries()].map(([url, title]) => ({ title, url }));
+  const sourcesBlock = approvedSources.length > 0
+    ? `\n\n[APPROVED SOURCES — use ONLY these URLs, no others]\n` +
+      approvedSources.map(s => `- ${s.title}: ${s.url}`).join("\n") +
+      `\n\nLINKING INSTRUCTIONS:
+- When you mention a specific article, recipe, or sample image gallery, link the relevant text inline using markdown: [link text](url)
+- At the end of your answer, if you referenced 1-3 sources the user would genuinely benefit from visiting, add a ## Sources section with clean title links: [Title](url)
+- Only include Sources if the links add real value (e.g. a recipe to follow, a sample gallery, a detailed review). Skip Sources if the answer is self-contained or all links are already inline.
+- Never invent URLs. Only use URLs from the APPROVED SOURCES list above.`
+    : "";
+
   // Synthesise final answer using the agent's full system prompt
   let finalAnswer = researchSummary
     // Strip any trailing JSON the agent leaked into the answer text
@@ -340,7 +365,7 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
     const synthRes = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        { role: "system", content: systemPrompt + memorySummary + "\n\nIMPORTANT: Write your answer in clean markdown only. Never include JSON, code blocks, 'Next action:', or any structured data in your response." },
+        { role: "system", content: systemPrompt + memorySummary + sourcesBlock + "\n\nIMPORTANT: Write your answer in clean markdown only. Never include JSON, code blocks, 'Next action:', or any structured data in your response." },
         {
           role: "user",
           content: researchContext
@@ -354,5 +379,5 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
     finalAnswer = synthRes.choices[0].message.content || "";
   }
 
-  return { answer: finalAnswer, steps: agentSteps };
+  return { answer: finalAnswer, steps: agentSteps, sources: approvedSources };
 }

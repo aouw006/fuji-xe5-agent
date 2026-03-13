@@ -7,6 +7,7 @@ interface Props {
 
 function parseInline(text: string): string {
   return text
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, "<a href='$2' target='_blank' rel='noopener noreferrer' style='color:#c8a96e;text-decoration:underline;text-decoration-color:rgba(200,169,110,0.4);text-underline-offset:2px;'>$1</a>")
     .replace(/\*\*(.*?)\*\*/g, "<strong style='color:#e8d5b0'>$1</strong>")
     .replace(/\*(.*?)\*/g, "<em>$1</em>")
     .replace(/`(.*?)`/g, "<code style='font-family:DM Mono,monospace;font-size:0.82em;background:rgba(200,169,110,0.08);padding:0.1em 0.35em;border-radius:3px;color:#c8a96e'>$1</code>");
@@ -95,17 +96,23 @@ export default function MessageRenderer({ text, isDark = true }: Props) {
       }
     }
 
-    // Headings
+    // Headings — special styling for ## Sources
     if (/^#{1,3}\s/.test(line)) {
       const level = (line.match(/^#+/) || [""])[0].length;
       const content = line.replace(/^#+\s/, "");
+      const isSources = content.trim().toLowerCase() === "sources";
       elements.push(
         <div key={i} style={{
-          fontFamily: "'Playfair Display', serif",
-          fontSize: level === 1 ? "1.05rem" : "0.95rem",
+          fontFamily: isSources ? "'DM Mono', monospace" : "'Playfair Display', serif",
+          fontSize: isSources ? "0.7rem" : level === 1 ? "1.05rem" : "0.95rem",
           fontWeight: 700,
           color: "#c8a96e",
-          margin: "1.1rem 0 0.35rem",
+          margin: isSources ? "1.4rem 0 0.4rem" : "1.1rem 0 0.35rem",
+          letterSpacing: isSources ? "0.1em" : undefined,
+          textTransform: isSources ? "uppercase" : undefined,
+          borderTop: isSources ? "1px solid rgba(200,169,110,0.15)" : undefined,
+          paddingTop: isSources ? "1rem" : undefined,
+          opacity: isSources ? 0.7 : 1,
         }}
         dangerouslySetInnerHTML={{ __html: parseInline(content) }} />
       );
