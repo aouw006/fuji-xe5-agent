@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { Theme } from "@/lib/theme";
 
 // ─── Film Simulation Base Presets ────────────────────────────────────────────

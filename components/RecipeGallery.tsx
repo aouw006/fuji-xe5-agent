@@ -1,9 +1,9 @@
 "use client";
+import React, { useState, useEffect } from "react";
 import Icon from "@/components/Icon";
-import { useState, useEffect } from "react";
 import RecipeCard, { RecipeData } from "./RecipeCard";
 import RecipeSimulator from "./RecipeSimulator";
-import { darkTheme, lightTheme } from "@/lib/theme";
+import { darkTheme, lightTheme, Theme } from "@/lib/theme";
 
 interface SavedRecipe extends RecipeData {
   id: string;
@@ -24,6 +24,18 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [editedSettings, setEditedSettings] = useState<{ label: string; value: string }[]>([]);
+
+  // Sync editedSettings when selected recipe changes
+  const selectRecipe = (id: string) => {
+    setSelected(id);
+    const r = recipes.find((r: SavedRecipe) => r.id === id);
+    if (r) setEditedSettings(r.settings ? [...r.settings] : []);
+  };
+
+  function updateSetting(label: string, value: string) {
+    setEditedSettings(prev => prev.map((s: { label: string; value: string }) => s.label === label ? { ...s, value } : s));
+  }
 
   useEffect(() => {
     if (open) fetchRecipes();
@@ -41,7 +53,10 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
       const res = await fetch("/api/recipes");
       const data = await res.json();
       setRecipes(data.recipes || []);
-      if (data.recipes?.length > 0) setSelected(data.recipes[0].id);
+      if (data.recipes?.length > 0) {
+        setSelected(data.recipes[0].id);
+        setEditedSettings(data.recipes[0].settings ? [...data.recipes[0].settings] : []);
+      }
     } catch {}
     setLoading(false);
   };
@@ -49,7 +64,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
   const handleDeleted = (id: string) => {
     const remaining = recipes.filter(r => r.id !== id);
     setRecipes(remaining);
-    setSelected(remaining.length > 0 ? remaining[0].id : null);
+    const next = remaining[0]; setSelected(next?.id || null); if (next) setEditedSettings(next.settings ? [...next.settings] : []);;
   };
 
   const selectedRecipe = recipes.find(r => r.id === selected);
@@ -123,7 +138,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
               const isSelected = selected === recipe.id;
               const filmSim = recipe.settings?.find((s: { label: string }) => /film simulation/i.test(s.label));
               return (
-                <button key={recipe.id} onClick={() => setSelected(recipe.id)}
+                <button key={recipe.id} onClick={() => selectRecipe(recipe.id)}
                   style={{
                     width: "100%", textAlign: "left", padding: "0",
                     background: isSelected ? (isDark ? "rgba(200,169,110,0.1)" : "rgba(176,136,64,0.12)") : "transparent",
@@ -180,7 +195,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
                 />
 
                 <RecipeSimulator
-                  settings={selectedRecipe.settings || []}
+                  settings={editedSettings}
                   recipeName={selectedRecipe.name}
                   t={t}
                   isDark={isDark}
@@ -188,10 +203,31 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
                   onImageUpload={setPreviewImage}
                 />
 
+                {/* Editable settings — only shown when preview image is loaded */}
+                {previewImage && editedSettings.length > 0 && (
+                  <div style={{ marginTop: "1.25rem" }}>
+                    <div style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.6rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span>Tweak settings — filter updates live</span>
+                      <button
+                        onClick={() => setEditedSettings(selectedRecipe.settings ? [...selectedRecipe.settings] : [])}
+                        style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textFaint, padding: "0.15rem 0.5rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.52rem", letterSpacing: "0.08em", textTransform: "uppercase", transition: "all 0.2s" }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textFaint; }}>
+                        Reset
+                      </button>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.35rem" }}>
+                      {editedSettings.map((s: { label: string; value: string }, i: number) => (
+                        <EditableSetting key={i} label={s.label} value={s.value} onChange={v => updateSetting(s.label, v)} t={t} isDark={isDark} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {recipes.length > 1 && (
                   <div style={{ display: "flex", justifyContent: "space-between", marginTop: "1.25rem" }}>
                     <button
-                      onClick={() => { if (selectedIdx > 0) setSelected(recipes[selectedIdx - 1].id); }}
+                      onClick={() => { if (selectedIdx > 0) selectRecipe(recipes[selectedIdx - 1].id); }}
                       disabled={selectedIdx === 0}
                       style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textFaint, padding: "0.4rem 1rem", borderRadius: "2px", cursor: selectedIdx === 0 ? "not-allowed" : "pointer", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s", opacity: selectedIdx === 0 ? 0.3 : 1 }}
                       onMouseEnter={e => { if (selectedIdx > 0) { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}}
@@ -202,7 +238,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
                       {selectedIdx + 1} / {recipes.length}
                     </span>
                     <button
-                      onClick={() => { if (selectedIdx < recipes.length - 1) setSelected(recipes[selectedIdx + 1].id); }}
+                      onClick={() => { if (selectedIdx < recipes.length - 1) selectRecipe(recipes[selectedIdx + 1].id); }}
                       disabled={selectedIdx === recipes.length - 1}
                       style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textFaint, padding: "0.4rem 1rem", borderRadius: "2px", cursor: selectedIdx === recipes.length - 1 ? "not-allowed" : "pointer", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s", opacity: selectedIdx === recipes.length - 1 ? 0.3 : 1 }}
                       onMouseEnter={e => { if (selectedIdx < recipes.length - 1) { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}}
@@ -224,5 +260,37 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Editable Setting Cell ────────────────────────────────────────────────────
+
+function EditableSetting({ label, value, onChange, t, isDark }: {
+  label: string; value: string; onChange: (v: string) => void; t: Theme; isDark: boolean; key?: React.Key;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const isFilmSim = /film simulation/i.test(label);
+
+  const commit = () => { setEditing(false); onChange(draft); };
+
+  return (
+    <div
+      style={{ padding: "0.4rem 0.6rem", background: editing ? (isDark ? "rgba(200,169,110,0.06)" : "rgba(176,136,64,0.08)") : t.bgInput, border: `1px solid ${editing ? (isDark ? "rgba(200,169,110,0.3)" : "rgba(176,136,64,0.35)") : t.borderCard}`, borderRadius: "3px", cursor: editing ? "default" : "pointer", transition: "all 0.15s" }}
+      onClick={() => { if (!editing) { setDraft(value); setEditing(true); } }}>
+      <div style={{ fontSize: "0.5rem", color: t.textVeryFaint, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.12rem" }}>{label}</div>
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={e => { setDraft(e.target.value); onChange(e.target.value); }}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
+          style={{ width: "100%", background: "transparent", border: "none", outline: "none", fontSize: isFilmSim ? "0.85rem" : "0.75rem", color: isFilmSim ? t.gold : t.text, fontFamily: "'DM Mono', monospace", padding: 0 }}
+        />
+      ) : (
+        <div style={{ fontSize: isFilmSim ? "0.85rem" : "0.75rem", color: isFilmSim ? t.gold : t.text, fontFamily: "'DM Mono', monospace" }}>{value}</div>
+      )}
+    </div>
   );
 }
