@@ -138,44 +138,55 @@ const SEARCHES: { category: DigestStory["category"]; query: string; maxResults: 
 ];
 
 async function buildDigest(): Promise<DigestData> {
-  // Run all searches in parallel
-  const searchResults = await Promise.all(
-    SEARCHES.map(s => tavilySearch(s.query, { maxResults: s.maxResults, searchDepth: "basic" })
-      .then(results => results.map(r => ({ ...r, category: s.category })))
-    )
-  );
+  // Run searches sequentially to avoid overwhelming limits
+  const allResults: Array<{ title: string; url: string; content: string; category: string }> = [];
 
-  const allResults = searchResults.flat();
+  for (const s of SEARCHES) {
+    try {
+      const results = await tavilySearch(s.query, { maxResults: s.maxResults, searchDepth: "basic" });
+      for (const r of results) allResults.push({ ...r, category: s.category });
+    } catch {
+      // continue with other searches
+    }
+  }
 
   // Deduplicate by URL
   const seen = new Set<string>();
   const unique = allResults.filter(r => {
+    if (!r.url || !r.title) return false;
     if (seen.has(r.url)) return false;
     seen.add(r.url);
     return true;
   });
 
-  // Fetch images in parallel (og:image first, Tavily fallback)
-  const stories: DigestStory[] = await Promise.all(
-    unique.map(async (r, i) => {
-      let image: string | null = null;
-      image = await scrapeOgImage(r.url);
-      if (!image) {
-        image = await tavilyImageSearch(r.title.split(" ").slice(0, 5).join(" ") + " Fujifilm");
-      }
+  // Build stories first without images so we always return something
+  const stories: DigestStory[] = unique.map((r, i) => ({
+    id: `story-${i}`,
+    title: r.title,
+    summary: r.content?.slice(0, 200).trim() + "…" || "",
+    url: r.url,
+    source: extractDomain(r.url),
+    image: null,
+    category: r.category as DigestStory["category"],
+    publishedAt: new Date().toISOString(),
+  }));
 
-      return {
-        id: `story-${i}`,
-        title: r.title,
-        summary: r.content?.slice(0, 200).trim() + "…" || "",
-        url: r.url,
-        source: extractDomain(r.url),
-        image,
-        category: r.category as DigestStory["category"],
-        publishedAt: new Date().toISOString(),
-      };
-    })
-  );
+  // Fetch images with a global timeout — skip any that are slow
+  const imagePromises = stories.map(async (story, i) => {
+    try {
+      const img = await Promise.race([
+        scrapeOgImage(story.url),
+        new Promise<null>(resolve => setTimeout(() => resolve(null), 3000)),
+      ]);
+      if (img) stories[i].image = img;
+    } catch {}
+  });
+
+  // Wait max 15s for all images
+  await Promise.race([
+    Promise.all(imagePromises),
+    new Promise(resolve => setTimeout(resolve, 15000)),
+  ]);
 
   return { stories, generatedAt: new Date().toISOString() };
 }
@@ -184,6 +195,17 @@ async function buildDigest(): Promise<DigestData> {
 
 export async function GET(req: NextRequest) {
   const force = req.nextUrl.searchParams.get("force") === "1";
+  const debug = req.nextUrl.searchParams.get("debug") === "1";
+
+  // Debug mode: just run one search and return raw results
+  if (debug) {
+    try {
+      const results = await tavilySearch("Fujifilm X-E5 news 2025", { maxResults: 3, searchDepth: "basic" });
+      return NextResponse.json({ debug: true, count: results.length, results });
+    } catch (e) {
+      return NextResponse.json({ debug: true, error: String(e) });
+    }
+  }
 
   if (!force) {
     const cached = await getCachedDigest();
