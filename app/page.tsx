@@ -386,7 +386,12 @@ export default function Home() {
           <Link href="/digest" style={{ ...headerBtn, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }} title="Fuji Daily"
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.gold; (e.currentTarget as HTMLElement).style.color = t.gold; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.border; (e.currentTarget as HTMLElement).style.color = t.textFaint; }}>
-            <span style={{ fontSize: "0.75rem", lineHeight: 1 }}>⊞</span>
+            <svg width="13" height="14" viewBox="0 0 13 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="0.5" y="0.5" width="12" height="13" rx="1" stroke="currentColor" strokeWidth="1"/>
+              <line x1="2.5" y1="4" x2="10.5" y2="4" stroke="currentColor" strokeWidth="1"/>
+              <line x1="2.5" y1="6.5" x2="10.5" y2="6.5" stroke="currentColor" strokeWidth="1"/>
+              <line x1="2.5" y1="9" x2="7.5" y2="9" stroke="currentColor" strokeWidth="1"/>
+            </svg>
           </Link>
           <Link href="/dashboard" style={{ ...headerBtn, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }} title="Dashboard"
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.gold; (e.currentTarget as HTMLElement).style.color = t.gold; }}
