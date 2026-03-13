@@ -36,6 +36,17 @@ export default function DigestPage() {
       const res = await fetch(`/api/digest${force ? "?force=1" : ""}`);
       if (!res.ok) throw new Error("Failed to load digest");
       const data: DigestData = await res.json();
+      // If cached result is empty, auto-fetch fresh
+      if (!force && (!data.stories || data.stories.length === 0)) {
+        const fresh = await fetch("/api/digest?force=1");
+        if (fresh.ok) {
+          const freshData: DigestData = await fresh.json();
+          setDigest(freshData);
+          setLoading(false);
+          setRefreshing(false);
+          return;
+        }
+      }
       setDigest(data);
     } catch (e) {
       setError("Could not load the digest. Please try again.");

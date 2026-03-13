@@ -137,8 +137,10 @@ function parseRssItems(xml: string, maxItems: number): RssItem[] {
     if (!title || !url) continue;
 
     // Summary from description or content
-    const descRaw = extractText(block, "description") ||
-                    extractText(block, "content:encoded") ||
+    // Prefer content:encoded (full HTML) over description for image extraction
+    const contentEncoded = extractText(block, "content:encoded");
+    const descRaw = contentEncoded ||
+                    extractText(block, "description") ||
                     extractText(block, "content") ||
                     extractText(block, "summary");
     const summary = stripHtml(descRaw).slice(0, 220).trim() + (descRaw.length > 220 ? "…" : "");
