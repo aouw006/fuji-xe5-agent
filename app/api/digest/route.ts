@@ -197,11 +197,18 @@ export async function GET(req: NextRequest) {
   const force = req.nextUrl.searchParams.get("force") === "1";
   const debug = req.nextUrl.searchParams.get("debug") === "1";
 
-  // Debug mode: just run one search and return raw results
+  // Debug mode: call Tavily directly and surface any error
   if (debug) {
+    const key = process.env.TAVILY_API_KEY;
+    if (!key) return NextResponse.json({ debug: true, error: "TAVILY_API_KEY not set", env: Object.keys(process.env).filter(k => k.includes("TAVILY")) });
     try {
-      const results = await tavilySearch("Fujifilm X-E5 news 2025", { maxResults: 3, searchDepth: "basic" });
-      return NextResponse.json({ debug: true, count: results.length, results });
+      const res = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: key, query: "Fujifilm X-E5 2025", search_depth: "basic", max_results: 2 }),
+      });
+      const text = await res.text();
+      return NextResponse.json({ debug: true, status: res.status, keyPrefix: key.slice(0, 8), response: text.slice(0, 500) });
     } catch (e) {
       return NextResponse.json({ debug: true, error: String(e) });
     }
