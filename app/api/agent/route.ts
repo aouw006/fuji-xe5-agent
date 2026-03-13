@@ -236,6 +236,20 @@ Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what wa
             }
           }
 
+          // Post-processing: if LLM didn't add Sources but we have sources, append them
+          if (sourceMeta.length > 0 && !/##\s*sources/i.test(fullResponse)) {
+            const trusted = ["fujixweekly.com", "fujifilm.com", "dpreview.com", "bhphotovideo.com", "mirrorlessons.com", "fujilove.com"];
+            const sorted = [...sourceMeta].sort((a, b) => {
+              const aScore = trusted.some(d => a.url.includes(d)) ? 1 : 0;
+              const bScore = trusted.some(d => b.url.includes(d)) ? 1 : 0;
+              return bScore - aScore;
+            });
+            const topSources = sorted.slice(0, 3);
+            const sourcesAppend = "\n\n## Sources\n" + topSources.map(s => `- [${s.title}](${s.url})`).join("\n");
+            fullResponse += sourcesAppend;
+            send({ type: "text", text: sourcesAppend });
+          }
+
           // Step 9: Save clean Q&A to memory + track token usage
           const responseTimeMs = Date.now() - startTime;
           const tokensEst = estimateTokens(userMessage + systemWithMemory + fullResponse);

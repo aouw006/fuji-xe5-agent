@@ -381,5 +381,19 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
     finalAnswer = synthRes.choices[0].message.content || "";
   }
 
+  // Post-processing: if LLM didn't include a Sources section but we have good sources, append one
+  const hasSourcesSection = /##\s*sources/i.test(finalAnswer);
+  if (!hasSourcesSection && approvedSources.length > 0) {
+    // Pick the top 3 most relevant-looking sources (prefer trusted photography domains)
+    const trusted = ["fujixweekly.com", "fujifilm.com", "dpreview.com", "bhphotovideo.com", "mirrorlessons.com", "fujilove.com"];
+    const sorted = [...approvedSources].sort((a, b) => {
+      const aScore = trusted.some(d => a.url.includes(d)) ? 1 : 0;
+      const bScore = trusted.some(d => b.url.includes(d)) ? 1 : 0;
+      return bScore - aScore;
+    });
+    const topSources = sorted.slice(0, 3);
+    finalAnswer += "\n\n## Sources\n" + topSources.map(s => `- [${s.title}](${s.url})`).join("\n");
+  }
+
   return { answer: finalAnswer, steps: agentSteps, sources: approvedSources };
 }
