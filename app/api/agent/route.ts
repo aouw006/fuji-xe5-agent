@@ -192,6 +192,10 @@ Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what wa
           const ragContext = formatRagContext(ragChunks);
           if (ragChunks.length > 0) {
             send({ type: "status", text: `📚 Found ${ragChunks.length} knowledge base chunks` });
+            // Merge RAG sources into sourceMeta so they appear in the Sources section
+            const ragMeta = ragChunks.map(c => ({ title: c.title, url: c.url }));
+            const existingUrls = new Set(sourceMeta.map(s => s.url));
+            ragMeta.forEach(r => { if (!existingUrls.has(r.url)) sourceMeta.push(r); });
           }
 
 
