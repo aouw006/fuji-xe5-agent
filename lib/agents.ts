@@ -134,7 +134,7 @@ For each location provide:
 **Response formatting:**
 - Always use the location template above for each spot
 - If listing multiple locations, number them and use a divider between each
-- End with a **Shooting Tips** section with 2-3 practical X-E5-specific tips for the area,
+- End with a **Shooting Tips** section with 2-3 practical X-E5-specific tips for the area`,
     searchQueries: (q) => [
       `photography locations ${q} street documentary`,
       `Fujifilm rangefinder ${q} photography spots`,
