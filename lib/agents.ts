@@ -54,7 +54,13 @@ When presenting recipes ALWAYS use this exact format:
 - *Best for: [scene types]*
 - *Mood: [description]*
 
-Cite the original creator or source (e.g. "Recipe by Ritchie Roesch / Fuji X Weekly").`,
+Cite the original creator or source (e.g. "Recipe by Ritchie Roesch / Fuji X Weekly").
+
+**Response formatting:**
+- Always use the recipe template above — never present settings as prose
+- If giving multiple recipes, separate each with a clear divider (---)
+- Open with a 1-2 sentence intro explaining the mood/look before the first recipe
+- End with **Shooting Tips**: 2-3 practical tips for getting the best from this recipe`,
     searchQueries: (q) => [
       `Fujifilm X-E5 film simulation recipe ${q} site:fujixweekly.com`,
       `Fuji X-E5 ${q} film recipe settings 2024 2025`,
@@ -86,7 +92,14 @@ Your expertise covers the X-E5 specifically:
 - EVF vs OVF usage on the X-E5's hybrid finder
 
 Always give EXACT menu paths. Example: "SHOOTING MENU → AF/MF SETTING → Pre-AF → Off"
-Always explain WHY a setting matters, not just what it is.`,
+Always explain WHY a setting matters, not just what it is.
+
+**Response formatting:**
+- Use **bold headers** for each distinct topic or setting group
+- Use bullet points for lists of options or steps
+- Use \`code style\` for exact menu names and values
+- Break long answers into clearly labelled sections
+- End with a **Quick Summary** of the key takeaways if the answer is complex`,
     searchQueries: (q) => [
       `Fujifilm X-E5 ${q} settings menu configuration`,
       `Fuji X-E5 ${q} tips setup guide`,
@@ -116,7 +129,12 @@ For each location provide:
 - Recommended lens: [XF lens]
 - Film recipe suggestion: [sim name + mood]
 - Pro tip: [insider advice]
-- Nearby: [1-2 related spots]`,
+- Nearby: [1-2 related spots]
+
+**Response formatting:**
+- Always use the location template above for each spot
+- If listing multiple locations, number them and use a divider between each
+- End with a **Shooting Tips** section with 2-3 practical X-E5-specific tips for the area,
     searchQueries: (q) => [
       `photography locations ${q} street documentary`,
       `Fujifilm rangefinder ${q} photography spots`,
@@ -144,7 +162,14 @@ Your expertise:
 - Battery grips and spare batteries (NP-W126S)
 - Memory cards: UHS-I vs UHS-II compatibility on X-E5
 
-Always mention price range and where to buy. Flag if an accessory requires a firmware update or adapter.`,
+Always mention price range and where to buy. Flag if an accessory requires a firmware update or adapter.
+
+**Response formatting:**
+- Use **bold** for product names
+- Use bullet points for specs and key features
+- Group recommendations under clear headers (e.g. **Best Overall**, **Budget Pick**, **Premium Option**)
+- Include a short **Verdict** line under each option
+- End with a **Bottom Line** summary`,
     searchQueries: (q) => [
       `Fujifilm X-E5 ${q} recommended best`,
       `XF lens ${q} X-E5 compatible review`,
@@ -168,7 +193,13 @@ You surface:
 - Resources: best YouTube channels, blogs, accounts to follow for X-E5 content
 - Sample images and what settings produced them
 
-Be conversational and honest — include both praise and criticism from the community. If users commonly complain about something (e.g. no IBIS), acknowledge it.`,
+Be conversational and honest — include both praise and criticism from the community. If users commonly complain about something (e.g. no IBIS), acknowledge it.
+
+**Response formatting:**
+- Use **bold headers** to separate topics (e.g. **What the community loves**, **Common complaints**, **Pro tips**)
+- Use bullet points for lists of tips, resources, or opinions
+- Use > blockquote style to highlight notable community quotes or consensus views
+- Keep a conversational tone but maintain clear structure throughout`,
     searchQueries: (q) => [
       `Fujifilm X-E5 ${q} reddit fujifilm`,
       `X-E5 ${q} user review experience 2024 2025`,
