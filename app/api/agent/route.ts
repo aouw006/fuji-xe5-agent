@@ -206,13 +206,9 @@ Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what wa
 
           // Build approved sources block for linking instructions
           const approvedSourcesBlock = sourceMeta.length > 0
-            ? `\n\n[APPROVED SOURCES — use ONLY these URLs, no others]\n` +
+            ? `\n\n[APPROVED SOURCES]\n` +
               sourceMeta.map(s => `- ${s.title}: ${s.url}`).join("\n") +
-              `\n\nLINKING INSTRUCTIONS:
-- When you mention a specific article, recipe, or sample image gallery, link the relevant text inline using markdown: [link text](url)
-- At the end of your answer, if you referenced 1-3 sources the user would genuinely benefit from visiting, add a ## Sources section with clean title links: [Title](url)
-- Only include Sources if the links add real value (e.g. a recipe to follow, a sample gallery, a detailed review). Skip Sources if the answer is self-contained or all links are already inline.
-- Never invent URLs. Only use URLs from the APPROVED SOURCES list above.`
+              `\n\nDo NOT include any markdown links or URLs in your answer text. Do not write [text](url) anywhere. Sources will be appended automatically after your answer.`
             : "";
 
           // Step 7: Build system prompt with memory injected
