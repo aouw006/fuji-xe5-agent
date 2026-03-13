@@ -335,7 +335,7 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
   }
 
   // Build the approved sources list for the synthesiser
-  const approvedSources = [...discoveredSources.entries()].map(([url, title]) => ({ title, url }));
+  const approvedSources = Array.from(discoveredSources.entries()).map(([url, title]) => ({ title, url }));
   const sourcesBlock = approvedSources.length > 0
     ? `\n\n[APPROVED SOURCES — use ONLY these URLs, no others]\n` +
       approvedSources.map(s => `- ${s.title}: ${s.url}`).join("\n") +
