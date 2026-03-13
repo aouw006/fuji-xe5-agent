@@ -279,14 +279,16 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
       toolResult = await searchWeb(decision.query, send);
       toolCounts.search_web++;
       // Extract title+URL pairs from search results
-      const titleMatches = [...toolResult.matchAll(/\[\d+\] (.+)\nURL: (https?:\/\/[^\s\n]+)/g)];
-      for (const m of titleMatches) discoveredSources.set(m[2], m[1].trim());
+      const reWeb = /\[\d+\] (.+)\nURL: (https?:\/\/[^\s\n]+)/g;
+      let mWeb: RegExpExecArray | null;
+      while ((mWeb = reWeb.exec(toolResult)) !== null) discoveredSources.set(mWeb[2], mWeb[1].trim());
     } else if (decision.action === "search_knowledge_base") {
       toolInput = decision.query;
       toolResult = await searchKnowledgeBase(decision.query, send);
       toolCounts.search_knowledge_base++;
-      const titleMatches = [...toolResult.matchAll(/\[\d+\] (.+)\nURL: (https?:\/\/[^\s\n]+)/g)];
-      for (const m of titleMatches) discoveredSources.set(m[2], m[1].trim());
+      const reKb = /\[\d+\] (.+)\nURL: (https?:\/\/[^\s\n]+)/g;
+      let mKb: RegExpExecArray | null;
+      while ((mKb = reKb.exec(toolResult)) !== null) discoveredSources.set(mKb[2], mKb[1].trim());
     } else if (decision.action === "fetch_url") {
       toolInput = decision.url;
       toolResult = await fetchUrl(decision.url, send);
