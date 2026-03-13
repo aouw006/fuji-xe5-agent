@@ -3,7 +3,8 @@ import React, { useState, useEffect } from "react";
 import Icon from "@/components/Icon";
 import RecipeCard, { RecipeData } from "./RecipeCard";
 import RecipeSimulator from "./RecipeSimulator";
-import RecipeControls, { RecipeValues, DEFAULT_VALUES, settingsToValues } from "./RecipeControls";
+import RecipeTweakModal from "./RecipeTweakModal";
+import { RecipeValues, DEFAULT_VALUES, settingsToValues } from "./RecipeControls";
 import { darkTheme, lightTheme } from "@/lib/theme";
 
 interface SavedRecipe extends RecipeData {
@@ -27,6 +28,7 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [values, setValues] = useState<RecipeValues>(DEFAULT_VALUES);
   const [baseValues, setBaseValues] = useState<RecipeValues>(DEFAULT_VALUES); // for reset
+  const [tweakOpen, setTweakOpen] = useState(false);
 
   const selectRecipe = (id: string, recipeList?: SavedRecipe[]) => {
     const list = recipeList || recipes;
@@ -151,8 +153,13 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
                 <RecipeSimulator values={values} recipeName={selectedRecipe.name} t={t} isDark={isDark} previewImage={previewImage} onImageUpload={setPreviewImage} />
 
                 {previewImage && (
-                  <div style={{ marginTop: "1.5rem" }}>
-                    <RecipeControls values={values} onChange={setValues} onReset={() => setValues(baseValues)} t={t} isDark={isDark} />
+                  <div style={{ marginTop: "0.75rem", display: "flex", justifyContent: "flex-end" }}>
+                    <button onClick={() => setTweakOpen(true)}
+                      style={{ background: "transparent", border: `1px solid ${isDark ? "rgba(200,169,110,0.3)" : "rgba(176,136,64,0.35)"}`, color: isDark ? "#c8a96e" : "#b08840", padding: "0.35rem 1rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", fontFamily: "'DM Mono', monospace", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = isDark ? "rgba(200,169,110,0.1)" : "rgba(176,136,64,0.12)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                      ✦ Tweak
+                    </button>
                   </div>
                 )}
 
@@ -185,6 +192,21 @@ export default function RecipeGallery({ open, onClose, sessionId, isDark, onComp
           </div>
         </div>
       </div>
+
+      {tweakOpen && previewImage && selectedRecipe && (
+        <RecipeTweakModal
+          open={tweakOpen}
+          onClose={() => setTweakOpen(false)}
+          values={values}
+          baseValues={baseValues}
+          onChange={setValues}
+          onReset={() => setValues(baseValues)}
+          previewImage={previewImage}
+          recipeName={selectedRecipe.name}
+          t={t}
+          isDark={isDark}
+        />
+      )}
     </>
   );
 }
