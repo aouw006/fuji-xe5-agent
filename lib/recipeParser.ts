@@ -87,3 +87,44 @@ export function parseRecipeFromText(text: string): ParsedRecipe | null {
     return null;
   }
 }
+
+// ─── Parse multiple recipes from a single response ───────────────────────────
+
+export function parseAllRecipesFromText(text: string): ParsedRecipe[] {
+  // Split on recipe boundaries — bold headers, ## headers, or "---" dividers
+  // Strategy: find all bold-header positions that look like recipe names, then
+  // slice the text between them and parse each chunk individually.
+
+  const results: ParsedRecipe[] = [];
+
+  // Must have film simulation at all to bother
+  if (!/film simulation/i.test(text)) return results;
+
+  // Find split points: lines starting with ** or ## that contain a recipe-like name
+  // Also split on --- dividers
+  const splitRegex = /(?=\n\*\*[^*\n]{3,60}\*\*|\n##\s+[^\n]+|\n---+\n)/g;
+  const chunks = text.split(splitRegex).filter(c => c.trim().length > 0);
+
+  if (chunks.length <= 1) {
+    // No splits found — try parsing the whole thing as one recipe
+    const single = parseRecipeFromText(text);
+    if (single) results.push(single);
+    return results;
+  }
+
+  for (const chunk of chunks) {
+    // Only parse chunks that contain film simulation settings
+    if (/film simulation/i.test(chunk)) {
+      const recipe = parseRecipeFromText(chunk);
+      if (recipe) results.push(recipe);
+    }
+  }
+
+  // Deduplicate by name
+  const seen = new Set<string>();
+  return results.filter(r => {
+    if (seen.has(r.name)) return false;
+    seen.add(r.name);
+    return true;
+  });
+}
