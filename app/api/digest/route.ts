@@ -95,14 +95,19 @@ function extractImageFromHtml(html: string): string | null {
 }
 
 function decodeHtmlEntities(str: string): string {
-  return str
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&#\d+;/g, "");
+  // Multiple passes to handle double-encoded content (Reddit does this)
+  let s = str;
+  for (let i = 0; i < 3; i++) {
+    s = s
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/&apos;/g, "'")
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n)));
+  }
+  return s;
 }
 
 function stripHtml(html: string): string {
@@ -139,11 +144,20 @@ function parseRssItems(xml: string, maxItems: number): RssItem[] {
     // Summary from description or content
     // Prefer content:encoded (full HTML) over description for image extraction
     const contentEncoded = extractText(block, "content:encoded");
-    const descRaw = contentEncoded ||
+    const rawDesc = contentEncoded ||
                     extractText(block, "description") ||
                     extractText(block, "content") ||
                     extractText(block, "summary");
-    const summary = stripHtml(descRaw).slice(0, 220).trim() + (descRaw.length > 220 ? "…" : "");
+    // Decode entities (Reddit double-encodes HTML) before parsing
+    const descRaw = decodeHtmlEntities(rawDesc);
+    const summaryText = stripHtml(descRaw);
+    // For Reddit, skip table/link clutter — just use first real sentence
+    const summary = summaryText
+      .replace(/submitted by.*$/i, "")
+      .replace(/\[link\].*$/i, "")
+      .replace(/\[comments\].*$/i, "")
+      .trim()
+      .slice(0, 220) + (summaryText.length > 220 ? "…" : "");
 
     // Image: try enclosure → media:content → media:thumbnail → first img in content
     let image: string | null = null;
