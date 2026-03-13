@@ -109,6 +109,103 @@ interface Props {
 export default function RecipeTweakModal({ open, onClose, values, baseValues, onChange, onReset, previewImage, recipeName, t, isDark }: Props) {
   const [showOriginal, setShowOriginal] = useState(false);
   const filter = buildFilterFromValues(values);
+
+  // ── Zoom / pan state ──────────────────────────────────────────────────────
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const lastPinchDist = useRef<number | null>(null);
+  const lastPanPos = useRef<{ x: number; y: number } | null>(null);
+  const imgContainerRef = useRef<HTMLDivElement>(null);
+
+  const clampOffset = useCallback((x: number, y: number, s: number) => {
+    // Allow panning proportional to zoom level
+    const maxShift = Math.max(0, (s - 1) * 50);
+    return {
+      x: Math.max(-maxShift, Math.min(maxShift, x)),
+      y: Math.max(-maxShift, Math.min(maxShift, y)),
+    };
+  }, []);
+
+  const resetZoom = useCallback(() => {
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastPinchDist.current = Math.sqrt(dx * dx + dy * dy);
+      lastPanPos.current = null;
+    } else if (e.touches.length === 1) {
+      lastPanPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastPinchDist.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    if (e.touches.length === 2 && lastPinchDist.current !== null) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const delta = dist / lastPinchDist.current;
+      lastPinchDist.current = dist;
+      setScale(prev => {
+        const next = Math.max(1, Math.min(5, prev * delta));
+        return next;
+      });
+    } else if (e.touches.length === 1 && lastPanPos.current !== null && scale > 1) {
+      const dx = e.touches[0].clientX - lastPanPos.current.x;
+      const dy = e.touches[0].clientY - lastPanPos.current.y;
+      lastPanPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      setOffset(prev => clampOffset(prev.x + dx, prev.y + dy, scale));
+    }
+  }, [scale, clampOffset]);
+
+  const handleTouchEnd = useCallback(() => {
+    lastPinchDist.current = null;
+    lastPanPos.current = null;
+    // Snap back if zoomed out
+    setScale(prev => {
+      if (prev < 1.05) { setOffset({ x: 0, y: 0 }); return 1; }
+      return prev;
+    });
+  }, []);
+
+  // Mouse wheel zoom (desktop)
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setScale(prev => {
+      const next = Math.max(1, Math.min(5, prev * delta));
+      if (next <= 1) setOffset({ x: 0, y: 0 });
+      return next;
+    });
+  }, []);
+
+  // Mouse drag pan (desktop)
+  const isDragging = useRef(false);
+  const dragStart = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (scale <= 1) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
+    e.preventDefault();
+  }, [scale, offset]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current || !dragStart.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    setOffset(clampOffset(dragStart.current.ox + dx, dragStart.current.oy + dy, scale));
+  }, [scale, clampOffset]);
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false;
+    dragStart.current = null;
+  }, []);
   const gold = isDark ? "#c8a96e" : "#b08840";
   const isMono = MONO_SIMS.includes(values.filmSimulation);
   const dRangeActive = values.dRangePriority !== "Off";
@@ -141,7 +238,18 @@ export default function RecipeTweakModal({ open, onClose, values, baseValues, on
         {/* ── Left: sticky live preview ── */}
         <div style={{ flex: "0 0 55%", background: "#0a0806", display: "flex", flexDirection: "column", position: "relative" }}>
           {/* Image area */}
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
+          <div
+            ref={imgContainerRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative", cursor: scale > 1 ? "grab" : "default", touchAction: "none" }}>
+          <div style={{ transform: `scale(${scale}) translate(${offset.x / scale}px, ${offset.y / scale}px)`, transformOrigin: "center center", transition: isDragging.current ? "none" : "transform 0.05s", willChange: "transform", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <img
               src={previewImage}
               alt="Preview"
@@ -160,15 +268,20 @@ export default function RecipeTweakModal({ open, onClose, values, baseValues, on
             )}
           </div>
 
+          </div>
           {/* Bottom bar */}
           <div style={{ padding: "0.6rem 1rem", background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
             <div style={{ fontSize: "0.55rem", color: "rgba(255,255,255,0.5)", fontFamily: "'DM Mono', monospace", letterSpacing: "0.06em" }}>{recipeName}</div>
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button
-                onMouseDown={() => setShowOriginal(true)} onMouseUp={() => setShowOriginal(false)}
-                onTouchStart={() => setShowOriginal(true)} onTouchEnd={() => setShowOriginal(false)}
-                style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", padding: "0.25rem 0.7rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.55rem", fontFamily: "'DM Mono', monospace" }}>
-                Hold: Original
+              {scale > 1 && (
+                <button onClick={resetZoom}
+                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", padding: "0.25rem 0.7rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.55rem", fontFamily: "'DM Mono', monospace" }}>
+                  {Math.round(scale * 100)}% · Reset
+                </button>
+              )}
+              <button onClick={() => setShowOriginal(v => !v)}
+                style={{ background: showOriginal ? "rgba(200,169,110,0.25)" : "rgba(255,255,255,0.1)", border: showOriginal ? "1px solid rgba(200,169,110,0.5)" : "1px solid rgba(255,255,255,0.15)", color: showOriginal ? "#c8a96e" : "rgba(255,255,255,0.7)", padding: "0.25rem 0.7rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.55rem", fontFamily: "'DM Mono', monospace", transition: "all 0.15s" }}>
+                {showOriginal ? "Original" : "Filtered"}
               </button>
               <button onClick={onReset}
                 style={{ background: "transparent", border: `1px solid rgba(200,169,110,0.3)`, color: gold, padding: "0.25rem 0.7rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.55rem", fontFamily: "'DM Mono', monospace", letterSpacing: "0.06em" }}>
