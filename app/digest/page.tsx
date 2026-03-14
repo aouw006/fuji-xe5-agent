@@ -271,18 +271,17 @@ export default function DigestPage() {
                   background: justSaved ? (isDark ? "rgba(200,169,110,0.15)" : "rgba(176,136,64,0.18)") : "transparent",
                   border: `1px solid ${isSavedAlready || justSaved ? t.gold : t.border}`,
                   color: isSavedAlready || justSaved ? t.gold : t.textFaint,
-                  padding: "0.3rem 0.75rem", borderRadius: "2px",
+                  padding: "0.3rem 0.8rem", borderRadius: "2px",
                   cursor: !digest || loading || saving ? "not-allowed" : "pointer",
-                  fontSize: "1rem", transition: "all 0.2s", lineHeight: 1,
-                  display: "flex", alignItems: "center", gap: "0.35rem",
+                  fontSize: "0.58rem", fontFamily: "'DM Mono', monospace", letterSpacing: "0.08em",
+                  transition: "all 0.2s", display: "flex", alignItems: "center", gap: "0.35rem",
+                  height: "28px",
                 }}>
-                <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>{isSavedAlready ? "♥" : "♡"}</span>
-                <span style={{ fontSize: "0.55rem", fontFamily: "'DM Mono', monospace", letterSpacing: "0.06em" }}>
-                  {saving ? "Saving…" : justSaved ? "Saved!" : "Save"}
-                </span>
+                <span>{isSavedAlready ? "♥" : "♡"}</span>
+                <span>{saving ? "Saving…" : justSaved ? "Saved!" : "Save"}</span>
               </button>
               <button onClick={() => fetchDigest(true)} disabled={refreshing}
-                style={{ background: "transparent", border: `1px solid ${t.border}`, color: refreshing ? t.textFaint : t.gold, padding: "0.3rem 0.8rem", borderRadius: "2px", cursor: refreshing ? "not-allowed" : "pointer", fontSize: "0.58rem", fontFamily: "'DM Mono', monospace", letterSpacing: "0.08em", transition: "all 0.2s" }}>
+                style={{ background: "transparent", border: `1px solid ${t.border}`, color: refreshing ? t.textFaint : t.gold, padding: "0.3rem 0.8rem", borderRadius: "2px", cursor: refreshing ? "not-allowed" : "pointer", fontSize: "0.58rem", fontFamily: "'DM Mono', monospace", letterSpacing: "0.08em", transition: "all 0.2s", height: "28px" }}>
                 {refreshing ? "Refreshing…" : "↻ Refresh"}
               </button>
             </div>

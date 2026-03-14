@@ -116,7 +116,7 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
               This app is an AI-powered research tool built specifically for the <strong style={{ color: t.text }}>Fujifilm X-E5</strong>. Ask any question and it automatically routes your query to the most relevant specialist agent. Each agent searches trusted photography sources, reads full articles, and streams a detailed answer — all in real time.
             </p>
             <div style={{ marginTop: "0.85rem", display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-              {["Groq (Llama 3.3 70B)", "Tavily Search", "Voyage RAG", "Supabase Memory", "6 Specialist Agents", "Agentic Loop"].map(tag => (
+              {["Groq (Llama 3.3 70B)", "Tavily Search", "Voyage RAG", "Supabase Memory", "6 Specialist Agents", "Agentic Loop", "Fuji Daily", "Search Credits"].map(tag => (
                 <span key={tag} style={{ fontSize: "0.58rem", color: t.gold, border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.3)"}`, borderRadius: "2px", padding: "0.15rem 0.5rem", letterSpacing: "0.08em", fontFamily: "'DM Mono', monospace" }}>
                   {tag}
                 </span>
@@ -133,9 +133,9 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
               {[
                 ["1", "Detect", "Keywords in your question determine which specialist agent handles it — or the Comparison Agent kicks in for vs/recommend queries"],
                 ["2", "Knowledge Base", "Voyage AI embeds your question into a 512-dimension vector and searches ingested articles for semantically similar content — this is RAG"],
-                ["3", "Search", "The agent runs targeted web searches. The Comparison Agent decides its own search strategy in an agentic loop"],
+                ["3", "Search", "The agent runs targeted web searches via the active search provider (Tavily or None). The Comparison Agent decides its own search strategy in an agentic loop"],
                 ["4", "Remember", "Past conversations are loaded from Supabase memory for context"],
-                ["5", "Stream", "Groq (Llama 3.3 70B) synthesizes everything and streams the answer in real time"],
+                ["5", "Stream", "Groq (Llama 3.3 70B) synthesizes everything and streams the answer in real time, including a Sources section with verified links"],
               ].map(([num, title, desc]) => (
                 <div key={num} style={{ display: "flex", gap: "1rem", padding: "0.65rem 0", borderBottom: `1px solid ${t.border}` }}>
                   <div style={{ width: "20px", height: "20px", borderRadius: "50%", border: `1px solid ${isDark ? "rgba(200,169,110,0.3)" : "rgba(176,136,64,0.4)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem", color: t.gold, flexShrink: 0, fontFamily: "'DM Mono', monospace", marginTop: "0.1rem" }}>{num}</div>
@@ -148,24 +148,44 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
             </div>
           </div>
 
-          {/* Advanced features */}
+          {/* Features */}
           <div style={{ marginBottom: "1.75rem" }}>
             <div style={{ fontSize: "0.6rem", color: t.textFaint, letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
-              Under the hood
+              Features
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {[
+                {
+                  title: "Fuji Daily — News Digest",
+                  body: "A daily newspaper-style digest of Fujifilm content pulled from RSS feeds including Fuji X Weekly, DPReview, PetaPixel, Mirrorlessons, Fujilove and Reddit. Press ♡ in the masthead to save an edition to your archive. Open past editions from the left drawer — pin it open to browse while reading. The digest refreshes every 6 hours.",
+                },
+                {
+                  title: "Sources & Links",
+                  body: "After every answer, a Sources section lists the articles the agent actually used — verified links only, no hallucinated URLs. Sources are ranked by trusted domain (Fuji X Weekly, DPReview, etc.) and capped at 3 per response.",
+                },
+                {
+                  title: "Search Provider Control",
+                  body: "In Settings (⚙), you can switch the live search provider between Tavily and None (KB only). Use None when your Tavily credits run low — answers still work from the knowledge base. The Dashboard Search tab shows your monthly credit usage, daily chart, and remaining credits.",
+                },
                 {
                   title: "RAG — Retrieval Augmented Generation",
                   body: "Before hitting the web, every query is converted into a 512-number vector by Voyage AI. That vector is compared against hundreds of pre-ingested photography articles stored in Supabase pgvector. The most semantically similar chunks are injected into the prompt as high-confidence reference material — even if they share no keywords with your question.",
                 },
                 {
                   title: "Agentic Loop (Comparison Agent)",
-                  body: "Most agents follow a fixed pipeline: search → answer. The Comparison Agent is different — it uses tool calling to run its own research loop. It decides which searches to run, whether to fetch a full article, and when it has enough information to answer. You can watch it work through multiple steps in the status bar.",
+                  body: "Most agents follow a fixed pipeline: search → answer. The Comparison Agent is different — it uses tool calling to run its own research loop. It decides which searches to run, whether to fetch a full article, and when it has enough information to answer. It enforces a minimum research budget (2 KB searches, 2 web searches, 1 URL fetch) before answering.",
                 },
                 {
-                  title: "Streaming",
-                  body: "Responses stream token by token using the Vercel Edge Runtime and Server-Sent Events. The agent status messages (searching, reading, found X chunks) are also streamed in real time so you can see exactly what's happening.",
+                  title: "Memory & Similar Questions",
+                  body: "Past conversations are stored in Supabase and loaded as context on each query. Question embeddings are also stored — if you ask something semantically similar to a past question, the app surfaces that previous answer as a reference before generating a new one.",
+                },
+                {
+                  title: "Custom Agent Sources",
+                  body: "In Settings (⚙), you can add custom domains for any agent to prioritise when searching. Useful for adding niche Fujifilm blogs or your favourite review sites.",
+                },
+                {
+                  title: "Dashboard Analytics",
+                  body: "The Dashboard tracks token usage, cost, response quality (self-critique scores), prompt history, recipe analytics, and search credit usage. Tabs: Cost, Agents, Prompts, Recipes, Search.",
                 },
               ].map(item => (
                 <div key={item.title} style={{ padding: "0.85rem 1rem", background: t.bgCard, border: `1px solid ${t.borderCard}`, borderRadius: "4px" }}>
@@ -217,7 +237,7 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
         {/* Footer */}
         <div style={{ padding: "0.85rem 1.5rem", borderTop: `1px solid ${t.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
           <div style={{ fontSize: "0.58rem", color: t.textVeryFaint, fontFamily: "'DM Mono', monospace", letterSpacing: "0.08em" }}>
-            XE5 Research Agent · v5.1
+            XE5 Research Agent · v6.0
           </div>
           <button onClick={onClose}
             style={{ background: isDark ? "rgba(200,169,110,0.1)" : "rgba(176,136,64,0.12)", border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)"}`, color: t.gold, padding: "0.35rem 1rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s" }}
