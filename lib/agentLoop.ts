@@ -104,7 +104,8 @@ function summarise(text: string, len = 220): string {
 
 
 
-const PLANNER_SYSTEM = `You are a research agent for the Fujifilm X-E5 mirrorless camera. You help photographers compare film simulation recipes, lenses, settings, and accessories. 
+function buildPlannerSystem(agentName: string): string {
+  return `You are a research agent for the Fujifilm X-E5 mirrorless camera, specialising in: ${agentName}.
 
 IMPORTANT DOMAIN CONTEXT:
 - "recipes" ALWAYS means Fujifilm film simulation recipes (camera color profiles), NEVER food
@@ -122,7 +123,7 @@ Each response must be a single JSON object. Available actions:
 DECISION STRATEGY:
 1. Start with search_knowledge_base — check curated Fujifilm articles first
 2. Always do a SECOND knowledge_base search with a different angle (e.g. first search specs, second search real-world use or reviews)
-3. Always do at least TWO web searches — one for specs/reviews, one specifically for prices in AUD
+3. Always do at least TWO web searches — one for content, one specifically for prices in AUD
 4. Use fetch_url when you spot a promising URL in search results — full article content beats snippets
 5. For comparisons: cover specs, real-world use, AND prices for EACH item
 
@@ -134,10 +135,11 @@ MINIMUM BEFORE ANSWERING:
 
 WHAT GOOD REASONING LOOKS LIKE:
 - "I've done one KB search — I need a second with a different angle before searching the web"
-- "Search result [2] links to a full lens review — I'll fetch that for detailed specs"
+- "Search result [2] links to a full article — I'll fetch that for detailed info"
 - "I now have 2 KB searches, 2 web searches, and a fetched article — I have enough to answer"
 
 Respond with valid JSON only. No other text.`;
+}
 
 // ─── Main loop ────────────────────────────────────────────────────────────────
 
@@ -146,13 +148,14 @@ export interface SourceEntry {
   url: string;
 }
 
-export async function runComparisonAgent(
+export async function runAgentLoop(
   message: string,
   systemPrompt: string,
   memorySummary: string,
   send: (data: object) => void,
-  agentId = "comparison",
-  sessionId?: string
+  agentId = "community",
+  sessionId?: string,
+  agentName = "Fujifilm X-E5 Research"
 ): Promise<{ answer: string; steps: AgentStep[]; sources: SourceEntry[] }> {
   send({ type: "status", text: "🤔 Planning research strategy..." });
 
@@ -226,7 +229,7 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
     try {
       const res = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
-        messages: [{ role: "system", content: PLANNER_SYSTEM }, ...messagesWithLedger],
+        messages: [{ role: "system", content: buildPlannerSystem(agentName) }, ...messagesWithLedger],
         max_tokens: 400,
         temperature: 0.1,
       });
@@ -381,3 +384,6 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
 
   return { answer: finalAnswer, steps: agentSteps, sources: approvedSources };
 }
+
+// Backward-compat alias
+export const runComparisonAgent = runAgentLoop;

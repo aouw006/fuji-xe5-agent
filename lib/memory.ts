@@ -170,3 +170,21 @@ export async function saveAgentPrompt(agentId: string, prompt: string): Promise<
 export function getCachedPrompt(agentId: string): string | undefined {
   return promptCache[agentId];
 }
+
+export async function getAgentReflections(
+  agentId: string,
+  limit = 5
+): Promise<{ score: number; critique: string }[]> {
+  if (!isSupabaseConfigured()) return [];
+  try {
+    const rows = await supabaseFetch(
+      `/conversations?agent_id=eq.${agentId}&role=eq.assistant&reflection_score=not.is.null&order=created_at.desc&limit=${limit}&select=reflection_score,reflection_critique`
+    );
+    if (!Array.isArray(rows)) return [];
+    return rows
+      .filter((r) => r.reflection_score != null)
+      .map((r) => ({ score: Number(r.reflection_score), critique: r.reflection_critique || "" }));
+  } catch {
+    return [];
+  }
+}

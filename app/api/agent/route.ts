@@ -6,9 +6,45 @@ import { getSession, saveMessage, isSupabaseConfigured } from "@/lib/memory";
 import type { MessageMeta } from "@/lib/memory";
 import { trackTokens, estimateTokens, getAgentSources } from "@/lib/analytics";
 import { retrieveChunks, formatRagContext, findSimilarQuestion, storeQuestionEmbedding } from "@/lib/rag";
-import { runComparisonAgent } from "@/lib/agentLoop";
+import { runAgentLoop } from "@/lib/agentLoop";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+// ── Self-improvement: evolve agent prompt when reflection scores are consistently low ──
+async function maybeImprovePrompt(agentId: string, score: number, currentPrompt: string) {
+  if (score >= 7) return;
+  try {
+    const { getAgentReflections, saveAgentPrompt, isSupabaseConfigured } = await import("@/lib/memory");
+    if (!isSupabaseConfigured()) return;
+    const history = await getAgentReflections(agentId, 5);
+    if (history.length < 3) return; // need enough data before evolving
+    const avgScore = history.reduce((a, b) => a + b.score, 0) / history.length;
+    if (avgScore >= 7) return; // average quality is fine
+    const critiqueList = history.map(r => `Score ${r.score}: ${r.critique}`).join("\n");
+    const res = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "system",
+          content: `You are a prompt engineer for a Fujifilm X-E5 photography AI assistant. Given a system prompt and recent quality critiques of its outputs, rewrite the prompt to address the recurring weaknesses. Keep the same structure, tone, and expertise focus. Only improve what the critiques indicate is weak. Return ONLY the improved prompt text, no explanation or preamble.`,
+        },
+        {
+          role: "user",
+          content: `Current prompt:\n${currentPrompt}\n\nRecent quality critiques (last ${history.length} responses):\n${critiqueList}\n\nImproved prompt:`,
+        },
+      ],
+      max_tokens: 1500,
+      temperature: 0.3,
+    });
+    const improved = res.choices[0]?.message?.content?.trim();
+    if (improved && improved.length > 100) {
+      await saveAgentPrompt(agentId, improved);
+      console.log(`[prompt-evolution] updated prompt for ${agentId} (avg score was ${avgScore.toFixed(1)})`);
+    }
+  } catch (e) {
+    console.error("[prompt-evolution] failed:", e);
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -130,8 +166,8 @@ export async function POST(req: NextRequest) {
           // Step 3: Check if this is a memory-only question (no search needed)
           const isMemoryQuestion = /what (was|were|did|have)|last (recipe|setting|answer|time)|remember|previous|earlier|before|we (discussed|talked)/i.test(expandedMessage);
 
-          // ── AGENTIC MODE for comparison agent ──────────────────────────────
-          if (agent.id === "comparison" && !isMemoryQuestion) {
+          // ── AGENTIC MODE — all agents ──────────────────────────────────────
+          if (!isMemoryQuestion) {
             const memorySummary = memoryHistory.length > 0
               ? "\n\n[PREVIOUS CONVERSATION CONTEXT]\n" +
                 memoryHistory.slice(-12).map(m =>
@@ -139,7 +175,9 @@ export async function POST(req: NextRequest) {
                 ).join("\n\n") + "\n[END PREVIOUS CONTEXT]\n"
               : "";
 
-            const { answer: fullResponse, steps: agentSteps, sources: agentSources } = await runComparisonAgent(expandedMessage, agent.systemPrompt, memorySummary, send, agent.id, sessionId);
+            const { answer: fullResponse, steps: agentSteps } = await runAgentLoop(
+              expandedMessage, agent.systemPrompt, memorySummary, send, agent.id, sessionId, agent.name
+            );
 
             // Stream the final answer word by word for a natural feel
             const words = fullResponse.split(" ");
@@ -150,7 +188,6 @@ export async function POST(req: NextRequest) {
 
             // Save to memory
             if (sessionId && isSupabaseConfigured()) {
-              console.log("[agentic] steps to save:", JSON.stringify(agentSteps));
               const meta: MessageMeta = { agent_id: agent.id, tokens_used: estimateTokens(message + fullResponse), agent_steps: agentSteps };
               await saveMessage(sessionId, "user", message, meta);
               await saveMessage(sessionId, "assistant", fullResponse, meta);
@@ -158,7 +195,29 @@ export async function POST(req: NextRequest) {
               storeQuestionEmbedding(sessionId, message).catch(() => {});
             }
 
-            // Reflection — same as standard path
+            // Follow-up suggestions
+            try {
+              const followupRes = await groq.chat.completions.create({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                  {
+                    role: "system",
+                    content: `You are a Fujifilm X-E5 photography assistant. Generate exactly 3 short follow-up questions a photographer would naturally ask next, based on the question and answer below. The questions should stay relevant to the ${agent.name} topic area. Return ONLY a JSON array of 3 strings — no explanation, no markdown, no numbering. Keep each question under 10 words.`,
+                  },
+                  { role: "user", content: `Question: ${expandedMessage}\n\nAnswer summary: ${fullResponse.slice(0, 800)}` },
+                ],
+                max_tokens: 200,
+                temperature: 0.7,
+                stream: false,
+              });
+              const raw = followupRes.choices[0]?.message?.content || "[]";
+              const suggestions = JSON.parse(raw.replace(/```json|```/g, "").trim());
+              if (Array.isArray(suggestions) && suggestions.length > 0) {
+                send({ type: "followups", suggestions: suggestions.slice(0, 3) });
+              }
+            } catch { /* follow-ups are optional */ }
+
+            // Reflection
             try {
               const reflectionRes = await groq.chat.completions.create({
                 model: "llama-3.3-70b-versatile",
@@ -166,21 +225,21 @@ export async function POST(req: NextRequest) {
                   {
                     role: "system",
                     content: `You are a quality evaluator for a Fujifilm X-E5 photography assistant. Score the answer on these 4 criteria:
-1. Answered the question directly
-2. Specific & actionable (concrete specs, values, prices — not vague)
-3. Covered both/all items being compared
-4. Used photography expertise
+1. Answered the question directly (did it actually address what was asked?)
+2. Specific & actionable (gave concrete settings, values, names — not vague advice)
+3. Included prices/availability if relevant to the question
+4. Used photography expertise (not generic advice that could apply to any camera)
 
-Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what was good and what was missing>", "criteria": {"answered": <1-3>, "specific": <1-3>, "prices": <1-3>, "expertise": <1-3>}}`
+Return ONLY a JSON object, no other text:
+{"score": <1-10>, "critique": "<one sentence: what was good and what was missing>", "criteria": {"answered": <1-3>, "specific": <1-3>, "prices": <1-3>, "expertise": <1-3>}}`,
                   },
-                  { role: "user", content: `Question: ${expandedMessage}\n\nAnswer: ${fullResponse.slice(0, 1500)}` }
+                  { role: "user", content: `Question: ${expandedMessage}\n\nAnswer: ${fullResponse.slice(0, 1500)}` },
                 ],
                 max_tokens: 200,
                 temperature: 0.1,
                 stream: false,
               });
               const rawRef = reflectionRes.choices[0]?.message?.content || "{}";
-              console.log("[reflection-comparison] raw:", rawRef.slice(0, 200));
               const reflection = JSON.parse(rawRef.replace(/```json|```/g, "").trim());
               if (reflection.score) {
                 if (sessionId && isSupabaseConfigured()) {
@@ -188,9 +247,12 @@ Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what wa
                   await updateReflection(sessionId, reflection.score, reflection.critique || "");
                 }
                 send({ type: "reflection", score: reflection.score, critique: reflection.critique, criteria: reflection.criteria });
+
+                // Self-improvement: if quality is consistently low, evolve the prompt (fire and forget)
+                maybeImprovePrompt(agent.id, reflection.score, agent.systemPrompt).catch(() => {});
               }
             } catch (e) {
-              console.error("[reflection-comparison] failed:", e);
+              console.error("[reflection] failed:", e);
             }
 
             send({ type: "tokens", count: estimateTokens(message + fullResponse), exact: false });
