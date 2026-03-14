@@ -38,6 +38,8 @@ export default function IngestPage() {
 
   const [input, setInput] = useState("");
   const [defaultAgent, setDefaultAgent] = useState<AgentId>("gear");
+  const [deepCrawl, setDeepCrawl] = useState(false);
+  const [crawling, setCrawling] = useState(false);
   const [entries, setEntries] = useState<UrlEntry[]>([]);
   const [running, setRunning] = useState(false);
   const [log, setLog] = useState<string[]>([]);
@@ -49,14 +51,49 @@ export default function IngestPage() {
     setTimeout(() => logEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   }
 
-  function parseInput() {
+  async function parseInput() {
     const lines = input.split("\n").map(l => l.trim()).filter(l => l.startsWith("http"));
-    const newEntries: UrlEntry[] = lines
+    if (lines.length === 0) return;
+
+    if (!deepCrawl) {
+      const newEntries: UrlEntry[] = lines
+        .filter(url => !entries.find(e => e.url === url))
+        .map(url => ({ id: Math.random().toString(36).slice(2), url, agent_id: defaultAgent, status: "pending" }));
+      setEntries(prev => [...prev, ...newEntries]);
+      setInput("");
+      addLog(`✚ Added ${newEntries.length} URL${newEntries.length !== 1 ? "s" : ""}`);
+      return;
+    }
+
+    // Deep crawl: discover all internal links from each seed URL
+    setCrawling(true);
+    const allUrls = new Set<string>();
+    for (const seedUrl of lines) {
+      addLog(`🕷 Crawling: ${seedUrl}`);
+      try {
+        const res = await fetch("/api/ingest/crawl", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: seedUrl }),
+        });
+        const data = await res.json();
+        if (data.error) {
+          addLog(`  ✗ Crawl failed: ${data.error}`);
+        } else {
+          addLog(`  ↳ Found ${data.count} links`);
+          for (const link of data.links) allUrls.add(link);
+        }
+      } catch (e) {
+        addLog(`  ✗ ${e}`);
+      }
+    }
+    const newEntries: UrlEntry[] = [...allUrls]
       .filter(url => !entries.find(e => e.url === url))
       .map(url => ({ id: Math.random().toString(36).slice(2), url, agent_id: defaultAgent, status: "pending" }));
     setEntries(prev => [...prev, ...newEntries]);
     setInput("");
-    addLog(`✚ Added ${newEntries.length} URL${newEntries.length !== 1 ? "s" : ""}`);
+    setCrawling(false);
+    addLog(`✚ Queued ${newEntries.length} discovered URL${newEntries.length !== 1 ? "s" : ""}`);
   }
 
   function updateEntry(id: string, patch: Partial<UrlEntry>) {
@@ -153,6 +190,17 @@ export default function IngestPage() {
                 onKeyDown={e => { if (e.key === "Enter" && e.metaKey) parseInput(); }} />
             </div>
 
+            {/* Deep Crawl toggle */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.5rem 0.75rem", background: deepCrawl ? (isDark ? "rgba(200,169,110,0.06)" : "rgba(176,136,64,0.06)") : t.bgCard, border: `1px solid ${deepCrawl ? goldBorder : t.border}`, borderRadius: "3px", transition: "all 0.2s", cursor: "pointer" }} onClick={() => setDeepCrawl(v => !v)}>
+              <div>
+                <div style={{ fontSize: "0.6rem", color: deepCrawl ? t.gold : t.textMuted, letterSpacing: "0.05em" }}>Deep Crawl</div>
+                <div style={{ fontSize: "0.52rem", color: t.textVeryFaint, marginTop: "0.15rem" }}>Follow all internal links from the given URL</div>
+              </div>
+              <div style={{ width: "28px", height: "16px", borderRadius: "8px", background: deepCrawl ? t.gold : t.border, position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                <div style={{ position: "absolute", top: "2px", left: deepCrawl ? "14px" : "2px", width: "12px", height: "12px", borderRadius: "50%", background: deepCrawl ? (isDark ? "#1a1a1a" : "#fff") : (isDark ? "#444" : "#ccc"), transition: "left 0.2s" }} />
+              </div>
+            </div>
+
             <div>
               <div style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.5rem" }}>Assign to agent</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
@@ -168,9 +216,11 @@ export default function IngestPage() {
               </div>
             </div>
 
-            <button onClick={parseInput} disabled={!input.trim()}
-              style={{ background: t.goldDim, border: `1px solid ${goldBorder}`, color: t.gold, padding: "0.6rem 1rem", borderRadius: "3px", cursor: input.trim() ? "pointer" : "not-allowed", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: input.trim() ? 1 : 0.4, transition: "all 0.15s" }}>
-              Add to Queue
+            <button onClick={parseInput} disabled={!input.trim() || crawling}
+              style={{ background: t.goldDim, border: `1px solid ${goldBorder}`, color: t.gold, padding: "0.6rem 1rem", borderRadius: "3px", cursor: (input.trim() && !crawling) ? "pointer" : "not-allowed", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: (input.trim() && !crawling) ? 1 : 0.4, transition: "all 0.15s" }}>
+              {crawling
+                ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}><span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: t.gold, animation: "pulse 1s infinite" }} />Crawling...</span>
+                : deepCrawl ? "Crawl & Queue" : "Add to Queue"}
             </button>
 
             {entries.length > 0 && (
