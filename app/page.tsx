@@ -4,7 +4,7 @@ import Icon from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
 
-const APP_VERSION = "v5.0";
+const APP_VERSION = "v5.5";
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import MessageRenderer from "@/components/MessageRenderer";
