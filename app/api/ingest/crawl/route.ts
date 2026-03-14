@@ -21,7 +21,7 @@ function extractLinks(html: string, baseUrl: string): string[] {
       }
     } catch { /* invalid URL, skip */ }
   }
-  return [...links].slice(0, MAX_LINKS);
+  return Array.from(links).slice(0, MAX_LINKS);
 }
 
 export async function POST(req: NextRequest) {
