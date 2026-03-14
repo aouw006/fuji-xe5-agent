@@ -296,6 +296,8 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
                 {providerSaved ? "✓ Saved" : savingProvider ? "Saving…" : "Save Provider Settings"}
               </button>
             </div>
+
+            <div style={{ marginBottom: "1.25rem" }}>
               <div style={{ fontSize: "0.75rem", fontWeight: 600, color: t.text, marginBottom: "0.2rem" }}>
                 <><Icon name={activeAgentData.icon as Parameters<typeof Icon>[0]["name"]} size={13} style={{ marginRight: "0.35rem", verticalAlign: "middle" }} />{activeAgentData.name}</>
               </div>
