@@ -123,6 +123,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [sessionId, setSessionId] = useState<string>("");
+  const [activeAgentId, setActiveAgentId] = useState<string>("");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [streaming, setStreaming] = useState("");
@@ -196,7 +197,7 @@ export default function Home() {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: query, history, sessionId }),
+        body: JSON.stringify({ message: query, history, sessionId, activeAgentId }),
       });
 
       if (!res.ok) throw new Error(await res.text());
@@ -221,6 +222,7 @@ export default function Home() {
             if (data.type === "agent") {
               agentInfo = { name: data.agentName, icon: data.agentIcon };
               setStreamingAgent(agentInfo);
+              if (data.agentId) setActiveAgentId(data.agentId);
             } else if (data.type === "status") {
               setStatusLog((prev) => [...prev, data.text]);
             } else if (data.type === "sources") {
@@ -312,7 +314,7 @@ export default function Home() {
     setStreaming("");
     setStatusLog([]);
     setStreamingAgent(null);
-    // Generate a fresh session_id for the new conversation
+    setActiveAgentId("");
     const newId = `xe5_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     setSessionId(newId);
   };

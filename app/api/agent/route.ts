@@ -12,7 +12,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, sessionId } = await req.json();
+    const { message, sessionId, activeAgentId, history } = await req.json();
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
@@ -23,9 +23,60 @@ export async function POST(req: NextRequest) {
 
         try {
           const startTime = Date.now();
-          // Step 1: Detect sub-agent
-          let agent = detectSubAgent(message);
-          send({ type: "agent", agentName: agent.name, agentIcon: agent.icon });
+
+          // ── Step 1: Query expansion ──────────────────────────────────────
+          // If there's conversation history, rewrite the message to resolve
+          // pronouns and implied subjects before routing or answering.
+          let expandedMessage = message;
+          const recentHistory = Array.isArray(history) ? history.slice(-6) : [];
+          const needsExpansion = recentHistory.length >= 2 &&
+            /^(is it|does it|how is it|what about it|is that|does that|how does that|tell me more|and the|what about the|how about|can it|will it|would it|is this|does this)\b/i.test(message.trim());
+
+          if (needsExpansion) {
+            try {
+              const historyContext = recentHistory
+                .map(m => `${m.role === "user" ? "User" : "Assistant"}: ${m.content.slice(0, 300)}`)
+                .join("\n");
+              const expansionRes = await groq.chat.completions.create({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                  {
+                    role: "system",
+                    content: `You are a query rewriter. Given a conversation history and a follow-up question, rewrite the follow-up as a fully self-contained question by resolving any pronouns or implied subjects. Output ONLY the rewritten question, nothing else. Keep it concise. If the question is already self-contained, return it unchanged.`,
+                  },
+                  {
+                    role: "user",
+                    content: `Conversation:\n${historyContext}\n\nFollow-up question: "${message}"\n\nRewritten question:`,
+                  },
+                ],
+                max_tokens: 80,
+                temperature: 0.1,
+              });
+              const rewritten = expansionRes.choices[0]?.message?.content?.trim();
+              if (rewritten && rewritten.length > 0 && rewritten.length < 300) {
+                expandedMessage = rewritten;
+              }
+            } catch { /* fall back to original message */ }
+          }
+
+          // ── Step 2: Agent detection with stickiness ──────────────────────
+          // Detect agent from the expanded message.
+          // If there's an active agent from this conversation, only switch if
+          // the new message strongly signals a different agent.
+          const detectedAgent = detectSubAgent(expandedMessage);
+          let agent = detectedAgent;
+
+          if (activeAgentId && activeAgentId !== detectedAgent.id) {
+            // Check if the detected agent is "community" (the weak fallback)
+            // or if the signal is ambiguous — if so, stick with the active agent
+            const weakSwitch = detectedAgent.id === "community";
+            if (weakSwitch) {
+              const { SUB_AGENTS } = await import("@/lib/agents");
+              agent = SUB_AGENTS[activeAgentId] || detectedAgent;
+            }
+          }
+
+          send({ type: "agent", agentName: agent.name, agentIcon: agent.icon, agentId: agent.id });
           send({ type: "status", text: `${agent.icon} ${agent.name} activated...` });
 
           // Step 1a: Load prompt override from DB if available
@@ -77,7 +128,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Step 3: Check if this is a memory-only question (no search needed)
-          const isMemoryQuestion = /what (was|were|did|have)|last (recipe|setting|answer|time)|remember|previous|earlier|before|we (discussed|talked)/i.test(message);
+          const isMemoryQuestion = /what (was|were|did|have)|last (recipe|setting|answer|time)|remember|previous|earlier|before|we (discussed|talked)/i.test(expandedMessage);
 
           // ── AGENTIC MODE for comparison agent ──────────────────────────────
           if (agent.id === "comparison" && !isMemoryQuestion) {
@@ -88,7 +139,7 @@ export async function POST(req: NextRequest) {
                 ).join("\n\n") + "\n[END PREVIOUS CONTEXT]\n"
               : "";
 
-            const { answer: fullResponse, steps: agentSteps, sources: agentSources } = await runComparisonAgent(message, agent.systemPrompt, memorySummary, send, agent.id, sessionId);
+            const { answer: fullResponse, steps: agentSteps, sources: agentSources } = await runComparisonAgent(expandedMessage, agent.systemPrompt, memorySummary, send, agent.id, sessionId);
 
             // Stream the final answer word by word for a natural feel
             const words = fullResponse.split(" ");
@@ -122,7 +173,7 @@ export async function POST(req: NextRequest) {
 
 Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what was good and what was missing>", "criteria": {"answered": <1-3>, "specific": <1-3>, "prices": <1-3>, "expertise": <1-3>}}`
                   },
-                  { role: "user", content: `Question: ${message}\n\nAnswer: ${fullResponse.slice(0, 1500)}` }
+                  { role: "user", content: `Question: ${expandedMessage}\n\nAnswer: ${fullResponse.slice(0, 1500)}` }
                 ],
                 max_tokens: 200,
                 temperature: 0.1,
@@ -155,7 +206,7 @@ Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what wa
           if (!isMemoryQuestion) {
             // Step 4: Build search queries and search
             send({ type: "status", text: "Planning search strategy..." });
-            const queries = agent.searchQueries(message);
+            const queries = agent.searchQueries(expandedMessage);
 
             const callSeed = Date.now() % 997;
             const sources = await multiRoundSearch(
@@ -177,10 +228,7 @@ Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what wa
           }
 
           // Step 5: Build clean memory context
-          // Only use last 6 exchanges (12 messages) to avoid token bloat
           const recentMemory = memoryHistory.slice(-12);
-
-          // Build a clean summary of past conversation for the system prompt
           const memorySummary = recentMemory.length > 0
             ? "\n\n[PREVIOUS CONVERSATION CONTEXT]\n" +
               recentMemory.map(m =>
@@ -190,21 +238,19 @@ Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what wa
             : "";
 
           // Step 6b: RAG retrieval — fetch relevant chunks from knowledge base
-          const ragChunks = await retrieveChunks(message, agent.id, 5);
+          const ragChunks = await retrieveChunks(expandedMessage, agent.id, 5);
           const ragContext = formatRagContext(ragChunks);
           if (ragChunks.length > 0) {
             send({ type: "status", text: `📚 Found ${ragChunks.length} knowledge base chunks` });
-            // Merge RAG sources into sourceMeta so they appear in the Sources section
             const ragMeta = ragChunks.map(c => ({ title: c.title, url: c.url }));
             const existingUrls = new Set(sourceMeta.map(s => s.url));
             ragMeta.forEach(r => { if (!existingUrls.has(r.url)) sourceMeta.push(r); });
           }
 
-
-          // Step 6: Build the user message
+          // Step 6: Build the user message — use expanded for search context, show original to user
           const userMessage = searchContext
-            ? `[LIVE SEARCH RESULTS - ${new Date().toLocaleDateString()}]\n\n${searchContext}\n\n---\n[USER QUESTION]\n${message}`
-            : message;
+            ? `[LIVE SEARCH RESULTS - ${new Date().toLocaleDateString()}]\n\n${searchContext}\n\n---\n[USER QUESTION]\n${expandedMessage}`
+            : expandedMessage;
 
           // Build approved sources block for linking instructions
           const approvedSourcesBlock = sourceMeta.length > 0
@@ -285,7 +331,7 @@ Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what wa
                 },
                 {
                   role: "user",
-                  content: `Question: ${message}\n\nAnswer summary: ${fullResponse.slice(0, 800)}`
+                  content: `Question: ${expandedMessage}\n\nAnswer summary: ${fullResponse.slice(0, 800)}`
                 }
               ],
               max_tokens: 200,
@@ -320,7 +366,7 @@ Return ONLY a JSON object, no other text:
                 },
                 {
                   role: "user",
-                  content: `Question: ${message}\n\nAnswer: ${fullResponse.slice(0, 1500)}`
+                  content: `Question: ${expandedMessage}\n\nAnswer: ${fullResponse.slice(0, 1500)}`
                 }
               ],
               max_tokens: 200,
