@@ -231,7 +231,7 @@ export default function Dashboard() {
                   alignItems: "center",
                   gap: "0.3rem",
                 }}>
-                  <Icon name={tab === "cost" ? "cost" : tab === "agents" ? "agents" : tab === "prompts" ? "inspect" : tab === "search" ? "search" : "film"} size={12} />
+                  <Icon name={tab === "cost" ? "cost" : tab === "agents" ? "agents" : tab === "prompts" ? "inspect" : tab === "search" ? "inspect" : "film"} size={12} />
                   {tab === "cost" ? "Cost" : tab === "agents" ? "Agents" : tab === "prompts" ? "Prompts" : tab === "search" ? "Search" : "Recipes"}
                 </button>
               ))}
