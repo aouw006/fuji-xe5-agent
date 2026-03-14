@@ -374,6 +374,9 @@ export async function getDashboardData() {
       ? tokenRows.filter(r => r.date >= firstOfMonth).reduce((s: number, r: { tokens_used: number }) => s + r.tokens_used, 0)
       : 0;
 
+    const { getSearchStats } = await import("@/lib/searchProvider");
+    const searchStats = await getSearchStats();
+
     return {
       costByDay,
       agentBreakdown,
@@ -386,6 +389,7 @@ export async function getDashboardData() {
       monthCost: parseFloat((monthTokens * BLENDED_COST_PER_TOKEN).toFixed(4)),
       budgetUsd: MONTHLY_BUDGET_USD,
       totalQueries: promptLog.length,
+      searchStats,
     };
   } catch (e) {
     console.error("Dashboard error:", e);

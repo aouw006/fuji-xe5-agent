@@ -178,8 +178,14 @@ export async function multiRoundSearch(
   queries: string[],
   priorityDomains: string[],
   onProgress?: (msg: string) => void,
-  callSeed?: number
+  callSeed?: number,
+  agentId?: string,
+  sessionId?: string
 ): Promise<SearchResult[]> {
+  const { providerSearch, providerScrape, getActiveProvider } = await import("@/lib/searchProvider");
+  const provider = await getActiveProvider();
+  if (provider === "none") return [];
+
   const seed = callSeed ?? (Date.now() % 997);
   const seen = new Set<string>();
   const allResults: SearchResult[] = [];
@@ -197,7 +203,7 @@ export async function multiRoundSearch(
   onProgress?.("Searching trusted sources…");
   const round1 = await Promise.allSettled(
     variedQueries.slice(0, 3).map((q) =>
-      tavilySearch(q, { maxResults: 7, excludeDomains, searchDepth: "advanced" })
+      providerSearch(q, { maxResults: 7, excludeDomains, agentId, sessionId })
     )
   );
 
@@ -212,14 +218,14 @@ export async function multiRoundSearch(
     }
   }
 
-  // Round 2: Priority domains with different query variation
-  if (priorityDomains.length > 0 && queries.length > 0) {
+  // Round 2: Priority domains (Tavily only — Brave doesn't support includeDomains)
+  if (priorityDomains.length > 0 && queries.length > 0 && provider === "tavily") {
     onProgress?.("Searching specialist sources…");
     const priorityQueries = queries.slice(0, 2).map((q, i) => varyQuery(q, seed + 50 + i));
 
     const round2 = await Promise.allSettled(
       priorityQueries.map((q) =>
-        tavilySearch(q, { maxResults: 5, includeDomains: priorityDomains, searchDepth: "advanced" })
+        providerSearch(q, { maxResults: 5, includeDomains: priorityDomains, agentId, sessionId })
       )
     );
 
@@ -247,7 +253,7 @@ export async function multiRoundSearch(
   onProgress?.("Reading full articles…");
   await Promise.allSettled(
     sampled.slice(0, 4).map(async (result) => {
-      const fullContent = await scrapeArticle(result.url);
+      const fullContent = await providerScrape(result.url, agentId, sessionId);
       if (fullContent && fullContent.length > result.content.length) {
         result.content = fullContent;
       }

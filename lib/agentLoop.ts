@@ -11,42 +11,29 @@ import { retrieveChunks } from "@/lib/rag";
 import type { AgentStep } from "@/lib/memory";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const TAVILY_KEY = process.env.TAVILY_API_KEY!;
 const MAX_STEPS = 10;
 
 // ─── Tools ────────────────────────────────────────────────────────────────────
 
-async function searchWeb(query: string, send: (d: object) => void): Promise<string> {
-  // Always inject Fujifilm context so generic terms like "recipes" don't hit food results
+async function searchWeb(query: string, send: (d: object) => void, agentId?: string, sessionId?: string): Promise<string> {
   const fujiQuery = /fuji|x-e5|film simulation|xf lens|fujifilm/i.test(query)
     ? query
     : `Fujifilm X-E5 ${query}`;
   send({ type: "status", text: `🔍 Searching: "${fujiQuery}"` });
   try {
-    const res = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_key: TAVILY_KEY, query: fujiQuery, max_results: 5 }),
-    });
-    const data = await res.json();
-    return (data.results || [])
-      .map((r: { title: string; url: string; content: string }, i: number) =>
-        `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content}`
-      )
-      .join("\n\n---\n\n") || "No results found.";
+    const { providerSearch } = await import("@/lib/searchProvider");
+    const results = await providerSearch(fujiQuery, { maxResults: 5, agentId, sessionId });
+    return results.length > 0
+      ? results.map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content}`).join("\n\n---\n\n")
+      : "No results found.";
   } catch (e) { return `Search failed: ${e}`; }
 }
 
-async function fetchUrl(url: string, send: (d: object) => void): Promise<string> {
+async function fetchUrl(url: string, send: (d: object) => void, agentId?: string, sessionId?: string): Promise<string> {
   send({ type: "status", text: `📄 Reading: ${url}` });
   try {
-    const res = await fetch("https://api.tavily.com/extract", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ api_key: TAVILY_KEY, urls: [url] }),
-    });
-    const data = await res.json();
-    return (data.results?.[0]?.raw_content || "").slice(0, 3000) || "Could not extract content.";
+    const { providerScrape } = await import("@/lib/searchProvider");
+    return await providerScrape(url, agentId, sessionId) || "Could not extract content.";
   } catch (e) { return `Fetch failed: ${e}`; }
 }
 
@@ -163,7 +150,9 @@ export async function runComparisonAgent(
   message: string,
   systemPrompt: string,
   memorySummary: string,
-  send: (data: object) => void
+  send: (data: object) => void,
+  agentId = "comparison",
+  sessionId?: string
 ): Promise<{ answer: string; steps: AgentStep[]; sources: SourceEntry[] }> {
   send({ type: "status", text: "🤔 Planning research strategy..." });
 
@@ -276,9 +265,8 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
 
     if (decision.action === "search_web") {
       toolInput = decision.query;
-      toolResult = await searchWeb(decision.query, send);
+      toolResult = await searchWeb(decision.query, send, agentId, sessionId);
       toolCounts.search_web++;
-      // Extract title+URL pairs from search results
       const reWeb = /\[\d+\] (.+)\nURL: (https?:\/\/[^\s\n]+)/g;
       let mWeb: RegExpExecArray | null;
       while ((mWeb = reWeb.exec(toolResult)) !== null) discoveredSources.set(mWeb[2], mWeb[1].trim());
@@ -291,7 +279,7 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
       while ((mKb = reKb.exec(toolResult)) !== null) discoveredSources.set(mKb[2], mKb[1].trim());
     } else if (decision.action === "fetch_url") {
       toolInput = decision.url;
-      toolResult = await fetchUrl(decision.url, send);
+      toolResult = await fetchUrl(decision.url, send, agentId, sessionId);
       toolCounts.fetch_url++;
     }
 

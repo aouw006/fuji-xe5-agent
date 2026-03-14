@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
                 ).join("\n\n") + "\n[END PREVIOUS CONTEXT]\n"
               : "";
 
-            const { answer: fullResponse, steps: agentSteps, sources: agentSources } = await runComparisonAgent(message, agent.systemPrompt, memorySummary, send);
+            const { answer: fullResponse, steps: agentSteps, sources: agentSources } = await runComparisonAgent(message, agent.systemPrompt, memorySummary, send, agent.id, sessionId);
 
             // Stream the final answer word by word for a natural feel
             const words = fullResponse.split(" ");
@@ -162,7 +162,9 @@ Return ONLY a JSON object: {"score": <1-10>, "critique": "<one sentence: what wa
               queries,
               agent.priorityDomains,
               (msg) => send({ type: "status", text: msg }),
-              callSeed
+              callSeed,
+              agent.id,
+              sessionId
             );
 
             sourceMeta = sources.map((s) => ({ title: s.title, url: s.url }));

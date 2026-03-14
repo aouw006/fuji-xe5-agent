@@ -30,6 +30,18 @@ const AGENT_LABELS: Record<string, string> = {
   unknown:         "Unknown",
 };
 
+interface SearchStats {
+  searches: number;
+  scrapes: number;
+  total: number;
+  limit: number;
+  remaining: number;
+  pct: number;
+  usageByDay: { date: string; count: number }[];
+  usageByAgent: { agent_id: string; count: number }[];
+  activeProvider: string;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface DashboardData {
   costByDay: { date: string; tokens: number; cost: number }[];
@@ -55,6 +67,7 @@ interface DashboardData {
   monthCost: number;
   budgetUsd: number;
   totalQueries: number;
+  searchStats: SearchStats;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -107,7 +120,7 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPrompt, setSelectedPrompt] = useState<DashboardData["promptLog"][0] | null>(null);
-  const [activeTab, setActiveTab] = useState<"cost" | "agents" | "prompts" | "recipes">("cost");
+  const [activeTab, setActiveTab] = useState<"cost" | "agents" | "prompts" | "recipes" | "search">("cost");
 
   useEffect(() => {
     const saved = localStorage.getItem("xe5_theme");
@@ -202,7 +215,7 @@ export default function Dashboard() {
 
             {/* ── Tabs ────────────────────────────────────────────────────── */}
             <div style={{ display: "flex", gap: "0.25rem", marginBottom: "1rem", borderBottom: `1px solid ${t.border}`, paddingBottom: "0" }}>
-              {(["cost", "agents", "prompts", "recipes"] as const).map((tab) => (
+              {(["cost", "agents", "prompts", "recipes", "search"] as const).map((tab) => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
                   background: "transparent",
                   border: "none",
@@ -218,8 +231,8 @@ export default function Dashboard() {
                   alignItems: "center",
                   gap: "0.3rem",
                 }}>
-                  <Icon name={tab === "cost" ? "cost" : tab === "agents" ? "agents" : tab === "prompts" ? "inspect" : "film"} size={12} />
-                  {tab === "cost" ? "Cost" : tab === "agents" ? "Agents" : tab === "prompts" ? "Prompts" : "Recipes"}
+                  <Icon name={tab === "cost" ? "cost" : tab === "agents" ? "agents" : tab === "prompts" ? "inspect" : tab === "search" ? "search" : "film"} size={12} />
+                  {tab === "cost" ? "Cost" : tab === "agents" ? "Agents" : tab === "prompts" ? "Prompts" : tab === "search" ? "Search" : "Recipes"}
                 </button>
               ))}
             </div>
@@ -561,6 +574,108 @@ export default function Dashboard() {
                 </Card>
               </div>
             )}
+
+            {/* ── Search Credits tab ────────────────────────────────────────── */}
+            {activeTab === "search" && (() => {
+              const ss = data.searchStats;
+              const gaugeColor = ss.pct > 90 ? "#e05555" : ss.pct > 70 ? "#e0a855" : "#4caf7d";
+
+              return (
+                <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+
+                  {/* Status */}
+                  <Card t={t} title="Search provider">
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                      <div style={{
+                        fontSize: "1.4rem", fontWeight: 700, fontFamily: "DM Mono, monospace",
+                        color: ss.activeProvider === "none" ? t.textMuted : t.gold,
+                        textTransform: "uppercase",
+                      }}>
+                        {ss.activeProvider}
+                      </div>
+                      <div style={{ fontSize: "0.62rem", color: t.textVeryFaint, lineHeight: 1.6 }}>
+                        {ss.activeProvider === "tavily" ? "Live search active" : "KB only — no live search"}
+                        <br />Change in Settings ⚙
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Summary */}
+                  <Card t={t} title="This month">
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
+                      <StatPill t={t} label="Searches" value={String(ss.searches)} />
+                      <StatPill t={t} label="Page reads" value={String(ss.scrapes)} />
+                      <StatPill t={t} label="Remaining" value={String(ss.remaining)} sub={`of ${ss.limit}`} />
+                    </div>
+                  </Card>
+
+                  {/* Tavily credit gauge */}
+                  <Card t={t} title="Tavily — monthly credit usage" span={2}>
+                    <div style={{ marginBottom: "0.5rem", display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "0.65rem", color: t.textMuted }}>
+                        {ss.total} used · {ss.remaining} remaining · resets 1st of month
+                      </span>
+                      <span style={{ fontSize: "0.65rem", color: gaugeColor, fontFamily: "DM Mono, monospace", fontWeight: 600 }}>
+                        {ss.total} / {ss.limit}
+                      </span>
+                    </div>
+                    <div style={{ height: "8px", background: t.bgCard, borderRadius: "4px", border: `1px solid ${t.border}`, marginBottom: "0.5rem" }}>
+                      <div style={{ height: "100%", width: `${ss.pct}%`, background: gaugeColor, borderRadius: "4px", transition: "width 0.5s ease" }} />
+                    </div>
+                    {ss.pct > 80 && (
+                      <div style={{ fontSize: "0.62rem", color: "#e0a855", lineHeight: 1.5 }}>
+                        ⚠ Running low — switch to None in Settings to preserve remaining credits.
+                      </div>
+                    )}
+                  </Card>
+
+                  {/* Daily chart */}
+                  <Card t={t} title="Daily usage — this month" span={2}>
+                    {ss.usageByDay.length === 0 ? (
+                      <div style={{ color: t.textMuted, fontSize: "0.75rem", textAlign: "center", padding: "2rem" }}>
+                        No search data yet this month.
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={160}>
+                        <BarChart data={ss.usageByDay} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                          <XAxis dataKey="date" tick={{ fontSize: 9, fill: t.textMuted }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fontSize: 9, fill: t.textMuted }} axisLine={false} tickLine={false} width={24} />
+                          <Tooltip content={<CustomTooltip t={t} />} />
+                          <Bar dataKey="count" name="Searches" fill={t.gold} opacity={0.8} radius={[2, 2, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </Card>
+
+                  {/* By agent */}
+                  <Card t={t} title="Searches by agent — this month" span={2}>
+                    {ss.usageByAgent.length === 0 ? (
+                      <div style={{ color: t.textMuted, fontSize: "0.75rem", textAlign: "center", padding: "1rem" }}>No data yet.</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                        {ss.usageByAgent.map(a => {
+                          const total = ss.usageByAgent.reduce((s, x) => s + x.count, 0);
+                          const pct = total > 0 ? Math.round((a.count / total) * 100) : 0;
+                          const color = AGENT_COLORS[a.agent_id] || AGENT_COLORS.unknown;
+                          return (
+                            <div key={a.agent_id}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.2rem" }}>
+                                <span style={{ fontSize: "0.65rem", color: t.text }}>{AGENT_LABELS[a.agent_id] || a.agent_id}</span>
+                                <span style={{ fontSize: "0.65rem", color: t.textMuted, fontFamily: "DM Mono, monospace" }}>{a.count} ({pct}%)</span>
+                              </div>
+                              <div style={{ height: "4px", background: t.bgCard, borderRadius: "2px", border: `1px solid ${t.border}` }}>
+                                <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: "2px", opacity: 0.8 }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
+
+                </div>
+              );
+            })()}
           </>
         )}
       </main>

@@ -37,6 +37,12 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
 
+  // Search provider state
+  const [provider, setProvider] = useState<"tavily" | "none">("tavily");
+  const [tavilyLimit, setTavilyLimit] = useState("1000");
+  const [savingProvider, setSavingProvider] = useState(false);
+  const [providerSaved, setProviderSaved] = useState(false);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
@@ -44,8 +50,34 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
   }, [onClose]);
 
   useEffect(() => {
-    if (open) fetchSources();
+    if (open) {
+      fetchSources();
+      fetchProviderSettings();
+    }
   }, [open]);
+
+  const fetchProviderSettings = async () => {
+    try {
+      const res = await fetch("/api/settings");
+      const data = await res.json();
+      if (data.provider) setProvider(data.provider);
+      if (data.tavilyLimit) setTavilyLimit(String(data.tavilyLimit));
+    } catch {}
+  };
+
+  const handleSaveProvider = async () => {
+    setSavingProvider(true);
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, tavilyLimit: parseInt(tavilyLimit) || 1000 }),
+      });
+      setProviderSaved(true);
+      setTimeout(() => setProviderSaved(false), 2000);
+    } catch {}
+    setSavingProvider(false);
+  };
 
   const fetchSources = async () => {
     setLoading(true);
@@ -204,7 +236,66 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
 
           {/* Sources panel */}
           <div style={{ flex: 1, overflowY: "auto", padding: "1.25rem 1.5rem" }}>
-            <div style={{ marginBottom: "1.25rem" }}>
+
+            {/* ── Search Provider ───────────────────────────────────────── */}
+            <div style={{ marginBottom: "1.5rem", paddingBottom: "1.5rem", borderBottom: `1px solid ${t.border}` }}>
+              <div style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "0.75rem" }}>
+                Search Provider
+              </div>
+
+              {/* Provider buttons */}
+              <div style={{ display: "flex", gap: "0.4rem", marginBottom: "1rem" }}>
+                {(["tavily", "none"] as const).map(p => (
+                  <button key={p} onClick={() => setProvider(p)}
+                    style={{
+                      flex: 1, padding: "0.45rem 0.5rem", borderRadius: "3px", cursor: "pointer",
+                      fontSize: "0.65rem", fontFamily: "'DM Mono', monospace", letterSpacing: "0.06em",
+                      textTransform: "uppercase", transition: "all 0.15s",
+                      background: provider === p ? (isDark ? "rgba(200,169,110,0.15)" : "rgba(176,136,64,0.18)") : t.bgCard,
+                      border: `1px solid ${provider === p ? t.gold : t.borderCard}`,
+                      color: provider === p ? t.gold : t.textMuted,
+                    }}>
+                    {p === "tavily" ? "Tavily" : "None (KB only)"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Provider description */}
+              <div style={{ fontSize: "0.62rem", color: t.textVeryFaint, lineHeight: 1.6, marginBottom: "1rem" }}>
+                {provider === "tavily" && "Tavily active — live web search enabled. 1,000 searches/month on the free plan."}
+                {provider === "none" && "Live search disabled. Answers come from the knowledge base only. No credits used."}
+              </div>
+
+              {/* Tavily monthly limit */}
+              {provider === "tavily" && (
+                <div style={{ marginBottom: "1rem" }}>
+                  <div style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.3rem" }}>
+                    Monthly search limit
+                  </div>
+                  <input type="number" value={tavilyLimit}
+                    onChange={e => setTavilyLimit(e.target.value)}
+                    style={{ width: "140px", background: t.bgInput, border: `1px solid ${t.borderMid}`, borderRadius: "3px", color: t.text, padding: "0.4rem 0.6rem", fontSize: "0.75rem", fontFamily: "'DM Mono', monospace", outline: "none" }}
+                    onFocus={e => e.target.style.borderColor = t.gold}
+                    onBlur={e => e.target.style.borderColor = t.borderMid}
+                  />
+                  <div style={{ fontSize: "0.58rem", color: t.textVeryFaint, marginTop: "0.3rem" }}>
+                    Update this if you upgrade to a paid Tavily plan.
+                  </div>
+                </div>
+              )}
+
+              <button onClick={handleSaveProvider} disabled={savingProvider}
+                style={{
+                  background: providerSaved ? "rgba(76,175,112,0.15)" : (isDark ? "rgba(200,169,110,0.12)" : "rgba(176,136,64,0.15)"),
+                  border: `1px solid ${providerSaved ? "#4caf70" : (isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)")}`,
+                  color: providerSaved ? "#4caf70" : t.gold,
+                  padding: "0.4rem 1rem", borderRadius: "3px", cursor: savingProvider ? "not-allowed" : "pointer",
+                  fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                  fontFamily: "'DM Sans', sans-serif", transition: "all 0.2s",
+                }}>
+                {providerSaved ? "✓ Saved" : savingProvider ? "Saving…" : "Save Provider Settings"}
+              </button>
+            </div>
               <div style={{ fontSize: "0.75rem", fontWeight: 600, color: t.text, marginBottom: "0.2rem" }}>
                 <><Icon name={activeAgentData.icon as Parameters<typeof Icon>[0]["name"]} size={13} style={{ marginRight: "0.35rem", verticalAlign: "middle" }} />{activeAgentData.name}</>
               </div>
