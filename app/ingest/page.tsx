@@ -87,7 +87,7 @@ export default function IngestPage() {
         addLog(`  ✗ ${e}`);
       }
     }
-    const newEntries: UrlEntry[] = [...allUrls]
+    const newEntries: UrlEntry[] = Array.from(allUrls)
       .filter(url => !entries.find(e => e.url === url))
       .map(url => ({ id: Math.random().toString(36).slice(2), url, agent_id: defaultAgent, status: "pending" }));
     setEntries(prev => [...prev, ...newEntries]);
