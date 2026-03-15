@@ -440,9 +440,7 @@ export default function Home() {
             <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(2rem, 5vw, 3.5rem)", fontWeight: 900, lineHeight: 1.05, color: t.text, margin: "0 0 0.75rem" }}>
               Fujifilm X-E5<br /><span style={{ color: t.gold, fontStyle: "italic" }}>Research Agent</span>
             </h1>
-            <p style={{ color: t.textMuted, maxWidth: "460px", margin: "0 auto 2rem", lineHeight: 1.8, fontSize: "0.875rem" }}>
-              Each question is routed to a specialist agent — film recipes, settings, locations, gear, comparisons, or community. It searches multiple rounds, reads full articles, and streams expert answers.
-            </p>
+           
 
             <ShotOfTheDay isDark={isDark} onPrompt={(p) => handleQuery(p)} />
 
