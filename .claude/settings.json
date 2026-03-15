@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Edit",
+      "Write",
+      "Read",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "mcp__c0a8ee7d-c322-4729-8fd8-6ac0eacc909e__list_deployments",
+      "mcp__c0a8ee7d-c322-4729-8fd8-6ac0eacc909e__get_deployment",
+      "mcp__c0a8ee7d-c322-4729-8fd8-6ac0eacc909e__get_deployment_build_logs",
+      "mcp__c0a8ee7d-c322-4729-8fd8-6ac0eacc909e__get_runtime_logs",
+      "mcp__c0a8ee7d-c322-4729-8fd8-6ac0eacc909e__get_project",
+      "mcp__c0a8ee7d-c322-4729-8fd8-6ac0eacc909e__list_projects",
+      "mcp__c0a8ee7d-c322-4729-8fd8-6ac0eacc909e__web_fetch_vercel_url"
+    ]
+  }
+}
