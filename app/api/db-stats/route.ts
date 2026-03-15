@@ -45,7 +45,7 @@ export async function GET() {
     ] = await Promise.all([
       count("/document_chunks"),
       q("/document_chunks?select=agent_id&limit=10000"),
-      q("/document_chunks?select=url,title,agent_id&limit=20"),
+      q("/document_chunks?select=url,title,agent_id&order=id.desc&limit=20"),
       count("/conversations"),
       q("/conversations?select=session_id&limit=10000"),
       q("/token_usage?select=tokens_used&limit=10000"),

@@ -388,6 +388,11 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
               onMouseLeave={e => e.currentTarget.style.color = t.textFaint}>
               Ingest →
             </a>
+            <a href="/db" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", borderBottom: `1px solid ${t.border}`, paddingBottom: "1px", transition: "color 0.2s" }}
+              onMouseEnter={e => e.currentTarget.style.color = t.gold}
+              onMouseLeave={e => e.currentTarget.style.color = t.textFaint}>
+              Knowledge Base →
+            </a>
           </div>
           <button onClick={onClose}
             style={{ background: isDark ? "rgba(200,169,110,0.1)" : "rgba(176,136,64,0.12)", border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)"}`, color: t.gold, padding: "0.35rem 1rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s" }}

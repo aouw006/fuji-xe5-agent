@@ -162,6 +162,9 @@ export default function Dashboard() {
           <Link href="/" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "0.3rem" }}>
             <Icon name="back" size={13} />Back
           </Link>
+          <Link href="/db" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s" }}>
+            Knowledge Base
+          </Link>
           <Link href="/evals" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s" }}>
             Evals
           </Link>
