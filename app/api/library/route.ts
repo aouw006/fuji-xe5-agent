@@ -50,7 +50,7 @@ export async function GET() {
     // List all PDFs in the folder
     const params = new URLSearchParams({
       q: `'${folderId}' in parents and mimeType='application/pdf' and trashed=false`,
-      fields: "files(id,name,size,modifiedTime,webViewLink)",
+      fields: "files(id,name,size,modifiedTime,webViewLink,thumbnailLink)",
       pageSize: "500",
       orderBy: "name",
     });
@@ -68,12 +68,15 @@ export async function GET() {
       size?: string;
       modifiedTime?: string;
       webViewLink?: string;
+      thumbnailLink?: string;
     }) => ({
       id: f.id,
       name: f.name,
       size: f.size ? parseInt(f.size) : null,
       modifiedTime: f.modifiedTime || null,
       webViewLink: f.webViewLink || `https://drive.google.com/file/d/${f.id}/view`,
+      // Bump thumbnail resolution from default s220 to s400
+      thumbnailLink: f.thumbnailLink ? f.thumbnailLink.replace(/=s\d+$/, "=s400") : null,
     }));
 
     return NextResponse.json({ files, total: files.length });
