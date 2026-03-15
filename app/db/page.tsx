@@ -91,6 +91,7 @@ export default function DbPage() {
           <Link href="/dashboard" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Dashboard</Link>
           <Link href="/ingest" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Ingester</Link>
           <Link href="/agents" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>How Agents Work</Link>
+          <Link href="/library" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Library</Link>
           <span style={{ color: t.gold, fontSize: 12 }}>Knowledge Base</span>
         </div>
         <button

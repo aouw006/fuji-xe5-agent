@@ -171,6 +171,7 @@ export default function IngestPage() {
             <a href="/dashboard" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none" }}>Dashboard</a>
             <a href="/db" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none" }}>Knowledge Base</a>
             <a href="/agents" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none" }}>How Agents Work</a>
+            <a href="/library" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none" }}>Library</a>
           </div>
             <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.01em" }}>Knowledge Base</div>
             <div style={{ fontSize: "0.6rem", color: t.textFaint, letterSpacing: "0.2em", textTransform: "uppercase", marginTop: "0.25rem" }}>RAG Ingestion Tool · Fujifilm X-E5 Agent</div>
