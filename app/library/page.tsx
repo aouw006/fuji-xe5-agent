@@ -9,6 +9,7 @@ interface DriveFile {
   size: number | null;
   modifiedTime: string | null;
   webViewLink: string;
+  thumbnailLink: string | null;
 }
 
 function formatSize(bytes: number | null): string {
@@ -17,19 +18,34 @@ function formatSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function parseFilenameDate(filename: string): string | null {
+  // yyyy-mm  e.g. 2024-03
+  const ym = filename.match(/(\d{4})-(\d{2})/);
+  if (ym) {
+    const year = parseInt(ym[1]), month = parseInt(ym[2]);
+    if (year >= 2000 && year <= 2035 && month >= 1 && month <= 12)
+      return `${MONTHS[month - 1]} ${year}`;
+  }
+  // mm.yyyy  e.g. 03.2024
+  const my = filename.match(/(\d{2})\.(\d{4})/);
+  if (my) {
+    const month = parseInt(my[1]), year = parseInt(my[2]);
+    if (year >= 2000 && year <= 2035 && month >= 1 && month <= 12)
+      return `${MONTHS[month - 1]} ${year}`;
+  }
+  return null;
 }
 
 function PdfIcon({ color }: { color: string }) {
   return (
-    <svg width="32" height="40" viewBox="0 0 32 40" fill="none" style={{ flexShrink: 0 }}>
-      <rect x="0" y="0" width="32" height="40" rx="3" fill={color} fillOpacity="0.08" />
-      <rect x="0" y="0" width="32" height="40" rx="3" stroke={color} strokeOpacity="0.2" strokeWidth="1" />
-      <path d="M6 8 L20 8 L26 14 L26 34 L6 34 Z" fill={color} fillOpacity="0.12" stroke={color} strokeOpacity="0.3" strokeWidth="1" />
-      <path d="M20 8 L20 14 L26 14" fill="none" stroke={color} strokeOpacity="0.3" strokeWidth="1" />
-      <text x="16" y="27" textAnchor="middle" fontSize="7" fontWeight="700" fill={color} fillOpacity="0.6" fontFamily="monospace">PDF</text>
+    <svg width="100%" height="100%" viewBox="0 0 80 100" fill="none">
+      <rect x="0" y="0" width="80" height="100" rx="4" fill={color} fillOpacity="0.06" />
+      <rect x="0" y="0" width="80" height="100" rx="4" stroke={color} strokeOpacity="0.15" strokeWidth="1.5" />
+      <path d="M16 20 L50 20 L64 34 L64 84 L16 84 Z" fill={color} fillOpacity="0.1" stroke={color} strokeOpacity="0.2" strokeWidth="1.5" />
+      <path d="M50 20 L50 34 L64 34" fill="none" stroke={color} strokeOpacity="0.2" strokeWidth="1.5" />
+      <text x="40" y="64" textAnchor="middle" fontSize="14" fontWeight="700" fill={color} fillOpacity="0.5" fontFamily="monospace">PDF</text>
     </svg>
   );
 }
@@ -43,6 +59,21 @@ export default function LibraryPage() {
   const [sortBy, setSortBy] = useState<"name" | "size" | "date">("name");
 
   const t = isDark ? darkTheme : lightTheme;
+
+  // Sync theme with localStorage — same pattern as all other pages
+  useEffect(() => {
+    const saved = localStorage.getItem("xe5_theme");
+    setIsDark(saved !== "light");
+    const handler = (e: StorageEvent) => { if (e.key === "xe5_theme") setIsDark(e.newValue !== "light"); };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
+
+  function toggleTheme() {
+    const next = !isDark;
+    setIsDark(next);
+    localStorage.setItem("xe5_theme", next ? "dark" : "light");
+  }
 
   useEffect(() => {
     fetch("/api/library")
@@ -76,14 +107,14 @@ export default function LibraryPage() {
           <span style={{ color: t.gold, fontSize: 12 }}>Library</span>
         </div>
         <button
-          onClick={() => setIsDark(d => !d)}
+          onClick={toggleTheme}
           style={{ background: t.bgButton, border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.25rem 0.6rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em" }}
         >
           {isDark ? "LIGHT" : "DARK"}
         </button>
       </div>
 
-      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "2rem 2rem" }}>
+      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem 2rem" }}>
         {/* Title */}
         <div style={{ marginBottom: "2rem" }}>
           <div style={{ fontSize: "0.55rem", letterSpacing: "0.25em", textTransform: "uppercase", color: t.textMuted, marginBottom: "0.4rem" }}>Google Drive</div>
@@ -121,20 +152,21 @@ export default function LibraryPage() {
           </div>
         )}
 
-        {/* States */}
+        {/* Loading */}
         {loading && (
           <div style={{ textAlign: "center", padding: "4rem", color: t.textMuted, fontSize: "0.8rem", letterSpacing: "0.1em" }}>
             Loading library…
           </div>
         )}
 
+        {/* Error */}
         {error && (
           <div style={{ background: "rgba(200,100,100,0.08)", border: "1px solid rgba(200,100,100,0.2)", borderRadius: "4px", padding: "1.5rem", color: "#c87e7e", fontSize: "0.8rem" }}>
             {error}
           </div>
         )}
 
-        {/* File grid */}
+        {/* Grid */}
         {!loading && !error && (
           <>
             {filtered.length === 0 && (
@@ -142,49 +174,67 @@ export default function LibraryPage() {
                 No magazines match &quot;{search}&quot;
               </div>
             )}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "0.75rem" }}>
-              {filtered.map(file => (
-                <div
-                  key={file.id}
-                  style={{
-                    background: t.bgCard, border: `1px solid ${t.borderCard}`, borderRadius: "4px",
-                    padding: "1rem 1.1rem", display: "flex", gap: "0.9rem", alignItems: "flex-start",
-                    transition: "border-color 0.2s",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = t.gold + "55")}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = t.borderCard)}
-                >
-                  <PdfIcon color={t.gold} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: "0.78rem", fontWeight: 600, color: t.text,
-                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                      marginBottom: "0.3rem",
-                    }} title={file.name}>
-                      {file.name.replace(/\.pdf$/i, "")}
-                    </div>
-                    <div style={{ fontSize: "0.6rem", color: t.textMuted, display: "flex", gap: "0.75rem", marginBottom: "0.6rem" }}>
-                      <span>{formatSize(file.size)}</span>
-                      <span>{formatDate(file.modifiedTime)}</span>
-                    </div>
-                    <a
-                      href={file.webViewLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "1rem" }}>
+              {filtered.map(file => {
+                const displayName = file.name.replace(/\.pdf$/i, "");
+                const parsedDate = parseFilenameDate(file.name);
+                return (
+                  <a
+                    key={file.id}
+                    href={file.webViewLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ textDecoration: "none", display: "flex", flexDirection: "column" }}
+                  >
+                    <div
                       style={{
-                        display: "inline-block", fontSize: "0.58rem", letterSpacing: "0.1em",
-                        textTransform: "uppercase", color: t.gold, textDecoration: "none",
-                        border: `1px solid ${t.gold}44`, borderRadius: "2px",
-                        padding: "0.2rem 0.5rem", transition: "background 0.15s",
+                        background: t.bgCard, border: `1px solid ${t.borderCard}`, borderRadius: "4px",
+                        overflow: "hidden", transition: "border-color 0.2s, transform 0.15s",
+                        cursor: "pointer",
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = t.goldBg)}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = t.gold + "66"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = t.borderCard; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
                     >
-                      Open ↗
-                    </a>
-                  </div>
-                </div>
-              ))}
+                      {/* Thumbnail */}
+                      <div style={{ width: "100%", aspectRatio: "3/4", background: t.bgInput, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                        {file.thumbnailLink ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={file.thumbnailLink}
+                            alt={displayName}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            onError={e => {
+                              // Fallback to PDF icon if thumbnail fails to load
+                              (e.currentTarget as HTMLImageElement).style.display = "none";
+                              const parent = (e.currentTarget as HTMLImageElement).parentElement;
+                              if (parent) parent.setAttribute("data-fallback", "true");
+                            }}
+                          />
+                        ) : (
+                          <div style={{ width: "60%", height: "75%" }}>
+                            <PdfIcon color={t.gold} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div style={{ padding: "0.65rem 0.75rem" }}>
+                        <div style={{
+                          fontSize: "0.72rem", fontWeight: 600, color: t.text,
+                          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                          overflow: "hidden", lineHeight: 1.35, marginBottom: "0.3rem",
+                        }} title={displayName}>
+                          {displayName}
+                        </div>
+                        <div style={{ fontSize: "0.58rem", color: t.textMuted, display: "flex", flexDirection: "column", gap: "0.1rem" }}>
+                          {parsedDate && <span style={{ color: t.gold }}>{parsedDate}</span>}
+                          <span>{formatSize(file.size)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                );
+              })}
             </div>
           </>
         )}
