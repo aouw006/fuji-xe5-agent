@@ -58,6 +58,17 @@ export default function DbPage() {
   const t = dark ? darkTheme : lightTheme;
 
   useEffect(() => {
+    const saved = localStorage.getItem("xe5_theme");
+    if (saved) setDark(saved === "dark");
+  }, []);
+
+  function toggleDark() {
+    const next = !dark;
+    setDark(next);
+    localStorage.setItem("xe5_theme", next ? "dark" : "light");
+  }
+
+  useEffect(() => {
     fetch("/api/db-stats")
       .then(r => r.json())
       .then(d => { setStats(d); setLoading(false); })
@@ -81,7 +92,7 @@ export default function DbPage() {
           <span style={{ color: t.gold, fontSize: 12 }}>Knowledge Base</span>
         </div>
         <button
-          onClick={() => setDark(d => !d)}
+          onClick={toggleDark}
           style={{ background: "none", border: `1px solid ${t.border}`, color: t.textMuted, padding: "2px 10px", borderRadius: 3, cursor: "pointer", fontSize: 11 }}
         >
           {dark ? "☀ light" : "◐ dark"}
