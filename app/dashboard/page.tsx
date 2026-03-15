@@ -125,6 +125,9 @@ export default function Dashboard() {
   useEffect(() => {
     const saved = localStorage.getItem("xe5_theme");
     setIsDark(saved !== "light");
+    const handler = (e: StorageEvent) => { if (e.key === "xe5_theme") setIsDark(e.newValue !== "light"); };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
   }, []);
 
   useEffect(() => {

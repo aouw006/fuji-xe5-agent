@@ -69,8 +69,24 @@ export default function LibraryPage() {
   const [sortBy, setSortBy] = useState<"name" | "size" | "date">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [failedThumbs, setFailedThumbs] = useState<Set<string>>(new Set());
+  const [warming, setWarming] = useState(false);
+  const [warmupMsg, setWarmupMsg] = useState<string | null>(null);
 
   const t = isDark ? darkTheme : lightTheme;
+
+  async function runWarmup() {
+    setWarming(true);
+    setWarmupMsg(null);
+    try {
+      const res = await fetch("/api/library/warmup", { method: "POST" });
+      const data = await res.json();
+      setWarmupMsg(data.message || data.error || "Done");
+    } catch {
+      setWarmupMsg("Failed to run warmup");
+    } finally {
+      setWarming(false);
+    }
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem("xe5_theme");
@@ -174,7 +190,21 @@ export default function LibraryPage() {
           <div style={{ fontSize: "0.55rem", letterSpacing: "0.25em", textTransform: "uppercase", color: t.textMuted, marginBottom: "0.4rem" }}>Google Drive</div>
           <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "2rem", fontWeight: 900, margin: 0, color: t.text }}>Magazine Library</h1>
           {!loading && !error && (
-            <div style={{ fontSize: "0.7rem", color: t.textMuted, marginTop: "0.35rem" }}>{files.length} magazines</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.35rem", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "0.7rem", color: t.textMuted }}>{files.length} magazines</span>
+              <button
+                onClick={runWarmup}
+                disabled={warming}
+                title="For large PDFs that have never been opened in Drive, this triggers Drive to generate their thumbnails in the background. Reload the page after a minute."
+                style={{
+                  background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted,
+                  padding: "0.2rem 0.55rem", borderRadius: "2px", cursor: warming ? "default" : "pointer",
+                  fontSize: "0.55rem", letterSpacing: "0.08em", opacity: warming ? 0.5 : 1,
+                }}>
+                {warming ? "Generating…" : "Generate thumbnails"}
+              </button>
+              {warmupMsg && <span style={{ fontSize: "0.6rem", color: t.textMuted, fontStyle: "italic" }}>{warmupMsg}</span>}
+            </div>
           )}
         </div>
 

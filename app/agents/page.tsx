@@ -39,7 +39,10 @@ export default function AgentsPage() {
 
   useEffect(() => {
     const saved = localStorage.getItem("xe5_theme");
-    if (saved) setDark(saved === "dark");
+    setDark(saved !== "light");
+    const handler = (e: StorageEvent) => { if (e.key === "xe5_theme") setDark(e.newValue !== "light"); };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
   }, []);
 
   useEffect(() => {
