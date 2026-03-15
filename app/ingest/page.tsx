@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { darkTheme, lightTheme } from "@/lib/theme";
+import NavBar from "@/components/NavBar";
 
 type AgentId = "film_recipes" | "camera_settings" | "gear" | "comparison" | "community" | "locations";
 
@@ -150,7 +151,7 @@ export default function IngestPage() {
   const totalChunks = entries.reduce((s, e) => s + (e.chunks || 0), 0);
 
   return (
-    <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'DM Mono', monospace", padding: "2rem", transition: "background 0.3s, color 0.3s" }}>
+    <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'DM Mono', monospace", transition: "background 0.3s, color 0.3s" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@300;400;500&display=swap');
         * { box-sizing: border-box; }
@@ -161,19 +162,14 @@ export default function IngestPage() {
         @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
       `}</style>
 
-      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+      <NavBar current="ingest" isDark={isDark} onToggleTheme={toggleTheme} />
 
-        {/* Header */}
+      <div style={{ maxWidth: "900px", margin: "0 auto", padding: "2rem" }}>
+
+        {/* Page title */}
         <div style={{ marginBottom: "2rem", borderBottom: `1px solid ${t.border}`, paddingBottom: "1.5rem", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
           <div>
-            <div style={{ display: "flex", gap: "1.25rem", alignItems: "center", marginBottom: "0.5rem" }}>
-            <a href="/" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none" }}>← Agent</a>
-            <a href="/dashboard" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none" }}>Dashboard</a>
-            <a href="/db" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none" }}>Knowledge Base</a>
-            <a href="/agents" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none" }}>How Agents Work</a>
-            <a href="/library" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none" }}>Library</a>
-          </div>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.01em" }}>Knowledge Base</div>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.6rem", fontWeight: 900, letterSpacing: "-0.01em" }}>Ingester</div>
             <div style={{ fontSize: "0.6rem", color: t.textFaint, letterSpacing: "0.2em", textTransform: "uppercase", marginTop: "0.25rem" }}>RAG Ingestion Tool · Fujifilm X-E5 Agent</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>

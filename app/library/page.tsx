@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
+import NavBar from "@/components/NavBar";
 import { darkTheme, lightTheme } from "@/lib/theme";
 
 interface DriveFile {
@@ -173,22 +173,7 @@ export default function LibraryPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'Inter', sans-serif", transition: "background 0.3s, color 0.3s" }}>
-      {/* Header */}
-      <div style={{ borderBottom: `1px solid ${t.border}`, padding: "0.75rem 2rem", display: "flex", alignItems: "center", justifyContent: "space-between", background: t.bgHeader, position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-          <Link href="/" style={{ color: t.gold, textDecoration: "none", fontSize: 12 }}>← Chat</Link>
-          <Link href="/dashboard" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Dashboard</Link>
-          <Link href="/db" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Knowledge Base</Link>
-          <Link href="/ingest" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Ingester</Link>
-          <span style={{ color: t.gold, fontSize: 12 }}>Library</span>
-        </div>
-        <button
-          onClick={toggleTheme}
-          style={{ background: t.bgButton, border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.25rem 0.6rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em" }}
-        >
-          {isDark ? "LIGHT" : "DARK"}
-        </button>
-      </div>
+      <NavBar current="library" isDark={isDark} onToggleTheme={toggleTheme} />
 
       <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem 2rem" }}>
         {/* Title */}

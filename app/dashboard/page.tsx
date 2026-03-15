@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from "recharts";
-import Icon from "@/components/Icon";
+import NavBar from "@/components/NavBar";
 
 import { darkTheme, lightTheme } from "@/lib/theme";
 
@@ -152,42 +151,7 @@ export default function Dashboard() {
       {/* Grain overlay */}
       <div className="grain-overlay" />
 
-      {/* Header */}
-      <header style={{ position: "sticky", top: 0, zIndex: 10, borderBottom: `1px solid ${t.border}`, background: t.bgHeader, backdropFilter: "blur(16px)", padding: "0.7rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div style={{ width: "28px", height: "28px", borderRadius: "50%", border: `1.5px solid ${t.gold}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.48rem", color: t.gold, background: t.goldBg, fontFamily: "DM Mono, monospace" }}>XE5</div>
-          <div>
-            <div style={{ fontFamily: "Playfair Display, serif", fontSize: "0.9rem", fontWeight: 700, color: t.text }}>Dashboard</div>
-            <div style={{ fontSize: "0.5rem", color: t.textMuted, letterSpacing: "0.1em", textTransform: "uppercase" }}>X-E5 Research Agent · Analytics</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <Link href="/" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-            <Icon name="back" size={13} />Back
-          </Link>
-          <Link href="/db" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s" }}>
-            Knowledge Base
-          </Link>
-          <Link href="/ingest" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s" }}>
-            Ingester
-          </Link>
-          <Link href="/agents" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s" }}>
-            How Agents Work
-          </Link>
-          <Link href="/library" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s" }}>
-            Library
-          </Link>
-          <Link href="/evals" style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, padding: "0.3rem 0.75rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s" }}>
-            Evals
-          </Link>
-          <button onClick={toggleTheme}
-            style={{ background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted, width: "30px", height: "30px", borderRadius: "2px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = t.gold; e.currentTarget.style.color = t.gold; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = t.border; e.currentTarget.style.color = t.textMuted; }}>
-            <Icon name={isDark ? "sun" : "moon"} size={14} />
-          </button>
-        </div>
-      </header>
+      <NavBar current="dashboard" isDark={isDark} onToggleTheme={toggleTheme} pageTitle="Dashboard" pageSubtitle="X-E5 Research Agent · Analytics" />
 
       <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "1.5rem", position: "relative", zIndex: 1 }}>
         {loading ? (

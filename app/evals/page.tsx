@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { darkTheme, lightTheme } from "@/lib/theme";
+import NavBar from "@/components/NavBar";
 
 const AGENT_COLORS: Record<string, string> = {
   film_recipes: "#c8a96e",
@@ -91,6 +92,7 @@ export default function EvalsPage() {
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
   }, []);
+  const toggleTheme = () => { const next = !isDark; setIsDark(next); localStorage.setItem("xe5_theme", next ? "dark" : "light"); };
   const t = isDark ? darkTheme : lightTheme;
   const goldBorder = isDark ? "rgba(200,169,110,0.25)" : "rgba(176,136,64,0.3)";
 
@@ -194,7 +196,7 @@ export default function EvalsPage() {
   const overallAvg = totalScored > 0 ? EVALS.filter(e => results[e.id]?.score !== undefined).reduce((s, e) => s + (results[e.id].score || 0), 0) / totalScored : null;
 
   return (
-    <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'DM Mono', monospace", padding: "2rem", transition: "background 0.3s, color 0.3s" }}>
+    <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'DM Mono', monospace", transition: "background 0.3s, color 0.3s" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Mono:wght@300;400;500&display=swap');
         * { box-sizing: border-box; }
@@ -206,12 +208,13 @@ export default function EvalsPage() {
         @keyframes spin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
       `}</style>
 
-      <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
+      <NavBar current="evals" isDark={isDark} onToggleTheme={toggleTheme} />
 
-        {/* Header */}
+      <div style={{ maxWidth: "1000px", margin: "0 auto", padding: "2rem" }}>
+
+        {/* Page title */}
         <div style={{ marginBottom: "2rem", display: "flex", alignItems: "flex-end", justifyContent: "space-between", borderBottom: `1px solid ${t.border}`, paddingBottom: "1.5rem" }}>
           <div>
-            <a href="/dashboard" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none", display: "block", marginBottom: "0.5rem" }}>← Dashboard</a>
             <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "1.6rem", fontWeight: 900 }}>Agent Evals</div>
             <div style={{ fontSize: "0.58rem", color: t.textFaint, letterSpacing: "0.12em", textTransform: "uppercase", marginTop: "0.25rem" }}>
               {totalDone}/{EVALS.length} completed

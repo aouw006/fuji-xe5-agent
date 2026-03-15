@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
+import NavBar from "@/components/NavBar";
 import { darkTheme, lightTheme } from "@/lib/theme";
 
 const AGENT_COLORS: Record<string, string> = {
@@ -87,23 +87,7 @@ export default function DbPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "monospace", fontSize: 13 }}>
-      {/* Header */}
-      <div style={{ borderBottom: `1px solid ${t.border}`, padding: "0.75rem 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
-          <Link href="/" style={{ color: t.gold, textDecoration: "none", fontSize: 12 }}>← Chat</Link>
-          <Link href="/dashboard" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Dashboard</Link>
-          <Link href="/ingest" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Ingester</Link>
-          <Link href="/agents" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>How Agents Work</Link>
-          <Link href="/library" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Library</Link>
-          <span style={{ color: t.gold, fontSize: 12 }}>Knowledge Base</span>
-        </div>
-        <button
-          onClick={toggleDark}
-          style={{ background: "none", border: `1px solid ${t.border}`, color: t.textMuted, padding: "2px 10px", borderRadius: 3, cursor: "pointer", fontSize: 11 }}
-        >
-          {dark ? "☀ light" : "◐ dark"}
-        </button>
-      </div>
+      <NavBar current="db" isDark={dark} onToggleTheme={toggleDark} />
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "1.5rem 1rem" }}>
         <h1 style={{ color: t.gold, fontSize: 16, fontWeight: 600, marginBottom: "1.5rem", letterSpacing: "0.05em" }}>
