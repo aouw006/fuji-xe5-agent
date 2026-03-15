@@ -45,7 +45,7 @@ export async function GET() {
     ] = await Promise.all([
       count("/document_chunks"),
       q("/document_chunks?select=agent_id&limit=10000"),
-      q("/document_chunks?select=url,title,agent_id&order=id.desc&limit=20"),
+      q("/document_chunks?select=url,title,agent_id,created_at&order=created_at.desc&limit=200"),
       count("/conversations"),
       q("/conversations?select=session_id&limit=10000"),
       q("/token_usage?select=tokens_used&limit=10000"),
@@ -100,12 +100,25 @@ export async function GET() {
       .sort((a, b) => b[1] - a[1])
       .map(([agent_id, chunks]) => ({ agent_id, chunks }));
 
+    // Deduplicate recent chunks by URL — keep first occurrence (most recent per page)
+    const seenUrls = new Set<string>();
+    const recentPages: { url: string; title: string; agent_id: string }[] = [];
+    if (Array.isArray(recentChunksRaw)) {
+      for (const row of recentChunksRaw) {
+        if (!seenUrls.has(row.url)) {
+          seenUrls.add(row.url);
+          recentPages.push({ url: row.url, title: row.title, agent_id: row.agent_id });
+          if (recentPages.length >= 20) break;
+        }
+      }
+    }
+
     return NextResponse.json({
       chunks: {
         total: totalChunks,
         byAgent: agentBreakdown,
         topDomains,
-        recent: recentChunksRaw || [],
+        recent: recentPages,
       },
       conversations: {
         total: totalConversations,
