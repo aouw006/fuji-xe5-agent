@@ -5,6 +5,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from "recharts";
+import Icon from "@/components/Icon";
 import NavBar from "@/components/NavBar";
 
 import { darkTheme, lightTheme } from "@/lib/theme";
