@@ -16,12 +16,12 @@ const AGENTS = [
     name: "Film Recipe Agent",
     triggers: "film, recipe, simulation, velvia, grain, eterna, chrome, neg",
     description: "Searches specialist sources like Fuji X Weekly for exact film simulation recipes with all settings. Gives you ready-to-type configurations for your X-E5.",
-    sources: ["fujixweekly.com", "fujilove.com"],
+    sources: ["fujixweekly.com", "film.recipes"],
   },
   {
     icon: "agentSettings",
     name: "Settings Agent",
-    triggers: "setting, config, menu, button, AF, ISO, shutter, autofocus",
+    triggers: "setting, config, menu, button, AF, ISO, shutter, autofocus, IBIS",
     description: "Finds optimal camera configurations, custom menu setups, and button assignments. Covers everything from AF tracking to silent shutter to IBIS.",
     sources: ["fujixweekly.com", "dpreview.com"],
   },
@@ -43,14 +43,13 @@ const AGENTS = [
     icon: "agentCompare",
     name: "Comparison Agent",
     triggers: "vs, versus, compare, which is better, should I get, recommend me, worth it",
-    description: "Runs in full agentic mode — decides its own research steps, searches for specs and prices separately, fetches full articles when needed, then synthesises a structured verdict. Unlike other agents, it loops until it has enough to answer properly.",
-    agentic: true,
+    description: "Runs the full agentic research loop — decides its own search strategy, fetches full articles when needed, and enforces a minimum research budget before synthesising a structured verdict.",
     sources: ["dpreview.com", "mirrorlessons.com", "kenrockwell.com"],
   },
   {
     icon: "agentCommunity",
     name: "Community Agent",
-    triggers: "everything else — tips, comparisons, general questions",
+    triggers: "everything else — tips, news, general questions",
     description: "The default fallback agent. Searches Reddit, forums and community blogs for real-world user experience, hidden tips, and honest opinions.",
     sources: ["reddit.com", "fujixweekly.com"],
   },
@@ -113,10 +112,10 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
           {/* App summary */}
           <div style={{ marginBottom: "1.75rem", padding: "1rem 1.25rem", background: isDark ? "rgba(200,169,110,0.04)" : "rgba(176,136,64,0.06)", border: `1px solid ${isDark ? "rgba(200,169,110,0.12)" : "rgba(176,136,64,0.18)"}`, borderRadius: "4px", borderLeft: `3px solid ${t.gold}` }}>
             <p style={{ fontSize: "0.82rem", color: t.textMuted, lineHeight: 1.8 }}>
-              This app is an AI-powered research tool built specifically for the <strong style={{ color: t.text }}>Fujifilm X-E5</strong>. Ask any question and it automatically routes your query to the most relevant specialist agent. Each agent searches trusted photography sources, reads full articles, and streams a detailed answer — all in real time.
+              An AI-powered research tool built specifically for the <strong style={{ color: t.text }}>Fujifilm X-E5</strong>. Ask any question and it routes to the most relevant specialist agent. Every agent runs a multi-step agentic research loop — searching the knowledge base, the live web, and full articles — before streaming a detailed answer.
             </p>
             <div style={{ marginTop: "0.85rem", display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-              {["Groq (Llama 3.3 70B)", "Tavily Search", "Voyage RAG", "Supabase Memory", "6 Specialist Agents", "Agentic Loop", "Fuji Daily", "Search Credits"].map(tag => (
+              {["Groq · Llama 3.3 70B", "Tavily Search", "Voyage AI RAG", "Supabase Memory", "6 Specialist Agents", "Agentic Loop", "Reflection Scoring", "Self-Improving Prompts"].map(tag => (
                 <span key={tag} style={{ fontSize: "0.58rem", color: t.gold, border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.3)"}`, borderRadius: "2px", padding: "0.15rem 0.5rem", letterSpacing: "0.08em", fontFamily: "'DM Mono', monospace" }}>
                   {tag}
                 </span>
@@ -131,11 +130,12 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
               {[
-                ["1", "Detect", "Keywords in your question determine which specialist agent handles it — or the Comparison Agent kicks in for vs/recommend queries"],
-                ["2", "Knowledge Base", "Voyage AI embeds your question into a 512-dimension vector and searches ingested articles for semantically similar content — this is RAG"],
-                ["3", "Search", "The agent runs targeted web searches via the active search provider (Tavily or None). The Comparison Agent decides its own search strategy in an agentic loop"],
-                ["4", "Remember", "Past conversations are loaded from Supabase memory for context"],
-                ["5", "Stream", "Groq (Llama 3.3 70B) synthesizes everything and streams the answer in real time, including a Sources section with verified links"],
+                ["1", "Expand", "If your question references earlier context (\"is it good?\", \"tell me more\"), it's rewritten into a self-contained question before routing"],
+                ["2", "Route", "Keywords determine which specialist agent handles the question. The active agent stays sticky unless a strong signal forces a switch"],
+                ["3", "Recall", "If you've asked something similar before, the previous answer is surfaced before a new one is generated"],
+                ["4", "Research Loop", "The agent runs multiple steps — searching the knowledge base, the live web, and fetching full articles — until a minimum research budget is met"],
+                ["5", "Stream", "Groq (Llama 3.3 70B) synthesises all findings and streams the answer in real time with verified source links"],
+                ["6", "Reflect", "A second model call scores the answer 1–10 and critiques it. If recent scores are low, the agent's system prompt is automatically rewritten to improve"],
               ].map(([num, title, desc]) => (
                 <div key={num} style={{ display: "flex", gap: "1rem", padding: "0.65rem 0", borderBottom: `1px solid ${t.border}` }}>
                   <div style={{ width: "20px", height: "20px", borderRadius: "50%", border: `1px solid ${isDark ? "rgba(200,169,110,0.3)" : "rgba(176,136,64,0.4)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.55rem", color: t.gold, flexShrink: 0, fontFamily: "'DM Mono', monospace", marginTop: "0.1rem" }}>{num}</div>
@@ -156,36 +156,32 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {[
                 {
-                  title: "Fuji Daily — News Digest",
-                  body: "A daily newspaper-style digest of Fujifilm content pulled from RSS feeds including Fuji X Weekly, DPReview, PetaPixel, Mirrorlessons, Fujilove and Reddit. Press ♡ in the masthead to save an edition to your archive. Open past editions from the left drawer — pin it open to browse while reading. The digest refreshes every 6 hours.",
+                  title: "Agentic Research Loop — All Agents",
+                  body: "Every agent runs a multi-step loop: it decides which tools to call, calls them, evaluates what it found, and loops until a minimum research budget is met (2 knowledge base searches, 2 web searches, 1 full article fetch). Only then does it synthesise an answer. A knowledge ledger tracks key findings across steps so no context is lost.",
                 },
                 {
-                  title: "Sources & Links",
-                  body: "After every answer, a Sources section lists the articles the agent actually used — verified links only, no hallucinated URLs. Sources are ranked by trusted domain (Fuji X Weekly, DPReview, etc.) and capped at 3 per response.",
+                  title: "Reflection & Self-Improving Prompts",
+                  body: "After every answer, Groq scores the response 1–10 across four criteria: directness, specificity, relevance, and expertise. If an agent's rolling average drops below 7 (min 3 samples), its system prompt is automatically rewritten by the model using the recent critiques — and the improved prompt is saved to Supabase for all future queries.",
+                },
+                {
+                  title: "RAG — Knowledge Base",
+                  body: "Every query is converted to a 512-dimension vector by Voyage AI and matched against ingested photography articles in Supabase pgvector. The most semantically similar chunks are injected into the prompt before the agent starts its research loop — giving it high-confidence grounding even without a web search.",
+                },
+                {
+                  title: "Fuji Daily — News Digest",
+                  body: "A daily newspaper-style digest of Fujifilm content pulled from RSS feeds including Fuji X Weekly, DPReview, PetaPixel, Mirrorlessons, Fujilove and Reddit. Press ♡ in the masthead to save an edition. Open past editions from the left drawer — pin it open to browse while reading. Refreshes every 6 hours.",
                 },
                 {
                   title: "Search Provider Control",
-                  body: "In Settings (⚙), you can switch the live search provider between Tavily and None (KB only). Use None when your Tavily credits run low — answers still work from the knowledge base. The Dashboard Search tab shows your monthly credit usage, daily chart, and remaining credits.",
-                },
-                {
-                  title: "RAG — Retrieval Augmented Generation",
-                  body: "Before hitting the web, every query is converted into a 512-number vector by Voyage AI. That vector is compared against hundreds of pre-ingested photography articles stored in Supabase pgvector. The most semantically similar chunks are injected into the prompt as high-confidence reference material — even if they share no keywords with your question.",
-                },
-                {
-                  title: "Agentic Loop (Comparison Agent)",
-                  body: "Most agents follow a fixed pipeline: search → answer. The Comparison Agent is different — it uses tool calling to run its own research loop. It decides which searches to run, whether to fetch a full article, and when it has enough information to answer. It enforces a minimum research budget (2 KB searches, 2 web searches, 1 URL fetch) before answering.",
+                  body: "In Settings (⚙), switch the live search provider between Tavily and None (KB only). Use None when Tavily credits run low — answers still work from the knowledge base. The Dashboard Search tab shows monthly credit usage and remaining credits.",
                 },
                 {
                   title: "Memory & Similar Questions",
-                  body: "Past conversations are stored in Supabase and loaded as context on each query. Question embeddings are also stored — if you ask something semantically similar to a past question, the app surfaces that previous answer as a reference before generating a new one.",
+                  body: "Past conversations are stored in Supabase and loaded as context on each query. Question embeddings are also stored — if you ask something semantically similar to a past question, the previous answer is surfaced as a reference before a new one is generated.",
                 },
                 {
-                  title: "Custom Agent Sources",
-                  body: "In Settings (⚙), you can add custom domains for any agent to prioritise when searching. Useful for adding niche Fujifilm blogs or your favourite review sites.",
-                },
-                {
-                  title: "Dashboard Analytics",
-                  body: "The Dashboard tracks token usage, cost, response quality (self-critique scores), prompt history, recipe analytics, and search credit usage. Tabs: Cost, Agents, Prompts, Recipes, Search.",
+                  title: "Dashboard & Knowledge Base",
+                  body: "Dashboard tracks token usage, cost, reflection scores, prompt history, recipe analytics, and search credit usage. Knowledge Base shows total ingested chunks by agent and domain, recent ingests, and which agents have self-improved prompts.",
                 },
               ].map(item => (
                 <div key={item.title} style={{ padding: "0.85rem 1rem", background: t.bgCard, border: `1px solid ${t.borderCard}`, borderRadius: "4px" }}>
@@ -207,11 +203,6 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
                   <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "0.4rem" }}>
                     <Icon name={agent.icon as Parameters<typeof Icon>[0]["name"]} size={18} style={{ color: t.gold }} />
                     <span style={{ fontFamily: "'Playfair Display', serif", fontSize: "0.9rem", fontWeight: 700, color: t.text }}>{agent.name}</span>
-                    {(agent as {agentic?: boolean}).agentic && (
-                      <span style={{ fontSize: "0.5rem", color: t.gold, border: `1px solid ${isDark ? "rgba(200,169,110,0.3)" : "rgba(176,136,64,0.4)"}`, borderRadius: "2px", padding: "0.1rem 0.35rem", letterSpacing: "0.1em", fontFamily: "DM Mono, monospace", textTransform: "uppercase" }}>
-                        Agentic
-                      </span>
-                    )}
                   </div>
                   <p style={{ fontSize: "0.72rem", color: t.textMuted, lineHeight: 1.7, marginBottom: "0.5rem" }}>{agent.description}</p>
                   <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
@@ -236,8 +227,15 @@ export default function AboutModal({ open, onClose, isDark }: Props) {
 
         {/* Footer */}
         <div style={{ padding: "0.85rem 1.5rem", borderTop: `1px solid ${t.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-          <div style={{ fontSize: "0.58rem", color: t.textVeryFaint, fontFamily: "'DM Mono', monospace", letterSpacing: "0.08em" }}>
-            XE5 Research Agent · v6.0
+          <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
+            <div style={{ fontSize: "0.58rem", color: t.textVeryFaint, fontFamily: "'DM Mono', monospace", letterSpacing: "0.08em" }}>
+              XE5 Research Agent · v5.5
+            </div>
+            <a href="/agents" style={{ fontSize: "0.55rem", color: t.textFaint, letterSpacing: "0.1em", textTransform: "uppercase", textDecoration: "none", borderBottom: `1px solid ${t.border}`, paddingBottom: "1px", transition: "color 0.2s" }}
+              onMouseEnter={e => e.currentTarget.style.color = t.gold}
+              onMouseLeave={e => e.currentTarget.style.color = t.textFaint}>
+              Deep dive: how agents work →
+            </a>
           </div>
           <button onClick={onClose}
             style={{ background: isDark ? "rgba(200,169,110,0.1)" : "rgba(176,136,64,0.12)", border: `1px solid ${isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)"}`, color: t.gold, padding: "0.35rem 1rem", borderRadius: "2px", cursor: "pointer", fontSize: "0.65rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s" }}

@@ -171,6 +171,46 @@ export function getCachedPrompt(agentId: string): string | undefined {
   return promptCache[agentId];
 }
 
+export async function logPromptRewrite(
+  agentId: string,
+  oldPrompt: string,
+  newPrompt: string,
+  triggerScore: number,
+  avgScore: number,
+  critiqueSummary: string
+): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  try {
+    await supabaseFetch("/agent_prompt_history", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: agentId,
+        old_prompt: oldPrompt,
+        new_prompt: newPrompt,
+        trigger_score: triggerScore,
+        avg_score: avgScore,
+        critique_summary: critiqueSummary,
+      }),
+    });
+  } catch (e) {
+    console.error("[logPromptRewrite] failed:", e);
+  }
+}
+
+export async function getPromptHistory(
+  limit = 20
+): Promise<{ id: number; agent_id: string; trigger_score: number; avg_score: number; critique_summary: string; created_at: string }[]> {
+  if (!isSupabaseConfigured()) return [];
+  try {
+    const rows = await supabaseFetch(
+      `/agent_prompt_history?select=id,agent_id,trigger_score,avg_score,critique_summary,created_at&order=created_at.desc&limit=${limit}`
+    );
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getAgentReflections(
   agentId: string,
   limit = 5
