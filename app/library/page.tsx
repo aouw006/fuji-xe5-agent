@@ -72,6 +72,10 @@ export default function LibraryPage() {
   const [failedLocalThumbs, setFailedLocalThumbs] = useState<Set<string>>(new Set());
   const [warming, setWarming] = useState(false);
   const [warmupMsg, setWarmupMsg] = useState<string | null>(null);
+  const [cachedFiles, setCachedFiles] = useState<Set<string>>(new Set());
+  const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
+
+  const CACHE_NAME = "fuji-library-pdfs";
 
   const t = isDark ? darkTheme : lightTheme;
 
@@ -122,6 +126,55 @@ export default function LibraryPage() {
       .catch(e => setError(String(e)))
       .finally(() => setLoading(false));
   }, []);
+
+  // Scan Cache API on mount to know which files are already cached
+  useEffect(() => {
+    if (!("caches" in window)) return;
+    caches.open(CACHE_NAME).then(async cache => {
+      const keys = await cache.keys();
+      const ids = keys
+        .map(req => new URL(req.url).pathname.split("/").at(-1) ?? "")
+        .filter(Boolean);
+      setCachedFiles(new Set(ids));
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function cacheFile(file: DriveFile) {
+    if (!("caches" in window)) return;
+    setDownloadingFiles(prev => new Set(Array.from(prev).concat(file.id)));
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      const url = `/api/library/download/${file.id}?name=${encodeURIComponent(file.name)}`;
+      await cache.add(url);
+      setCachedFiles(prev => new Set(Array.from(prev).concat(file.id)));
+    } catch { /* silent */ } finally {
+      setDownloadingFiles(prev => { const n = new Set(Array.from(prev)); n.delete(file.id); return n; });
+    }
+  }
+
+  async function uncacheFile(file: DriveFile) {
+    if (!("caches" in window)) return;
+    const cache = await caches.open(CACHE_NAME);
+    await cache.delete(`/api/library/download/${file.id}?name=${encodeURIComponent(file.name)}`);
+    setCachedFiles(prev => { const n = new Set(Array.from(prev)); n.delete(file.id); return n; });
+  }
+
+  async function openFile(file: DriveFile) {
+    if (cachedFiles.has(file.id) && "caches" in window) {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(
+        `/api/library/download/${file.id}?name=${encodeURIComponent(file.name)}`
+      );
+      if (cached) {
+        const blob = await cached.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        return;
+      }
+    }
+    window.open(file.webViewLink, "_blank");
+  }
 
   // Count per category for the filter pills
   const categoryCounts = useMemo(() => {
@@ -289,6 +342,9 @@ export default function LibraryPage() {
                 const driveFailed = failedThumbs.has(file.id);
                 const thumbFailed = localFailed && driveFailed;
 
+                const isCached = cachedFiles.has(file.id);
+                const isDownloading = downloadingFiles.has(file.id);
+
                 return (
                   <a
                     key={file.id}
@@ -296,6 +352,9 @@ export default function LibraryPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ textDecoration: "none", display: "flex", flexDirection: "column" }}
+                    onClick={async e => {
+                      if (isCached) { e.preventDefault(); await openFile(file); }
+                    }}
                   >
                     <div
                       style={{
@@ -307,7 +366,28 @@ export default function LibraryPage() {
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = t.borderCard; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
                     >
                       {/* Thumbnail */}
-                      <div style={{ width: "100%", aspectRatio: "3/4", background: t.bgInput, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                      <div style={{ width: "100%", aspectRatio: "3/4", background: t.bgInput, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
+                        {/* Cache button */}
+                        <button
+                          title={isCached ? "Remove from local cache" : "Save locally for offline access"}
+                          onClick={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            isCached ? uncacheFile(file) : cacheFile(file);
+                          }}
+                          style={{
+                            position: "absolute", top: "0.4rem", right: "0.4rem", zIndex: 2,
+                            width: "1.6rem", height: "1.6rem", borderRadius: "50%",
+                            border: `1px solid ${isCached ? t.gold : "rgba(255,255,255,0.3)"}`,
+                            background: isCached ? t.gold + "22" : "rgba(0,0,0,0.35)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            cursor: "pointer", backdropFilter: "blur(4px)",
+                            color: isCached ? t.gold : "rgba(255,255,255,0.7)",
+                            fontSize: "0.65rem", transition: "all 0.15s",
+                          }}
+                        >
+                          {isDownloading ? "⟳" : isCached ? "✓" : "↓"}
+                        </button>
                         {thumb && !thumbFailed ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -351,9 +431,10 @@ export default function LibraryPage() {
                         }} title={displayName}>
                           {displayName}
                         </div>
-                        {/* Size */}
-                        <div style={{ fontSize: "0.52rem", color: t.textFaint, marginTop: "0.25rem" }}>
-                          {formatSize(file.size)}
+                        {/* Size + cache status */}
+                        <div style={{ fontSize: "0.52rem", color: t.textFaint, marginTop: "0.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span>{formatSize(file.size)}</span>
+                          {isCached && <span style={{ color: t.gold, fontSize: "0.5rem" }}>● local</span>}
                         </div>
                       </div>
                     </div>
