@@ -398,6 +398,15 @@ export default function Home() {
               <line x1="2.5" y1="9" x2="7.5" y2="9" stroke="currentColor" strokeWidth="1"/>
             </svg>
           </Link>
+          <Link href="/library" style={{ ...headerBtn, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }} title="Magazine Library"
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.gold; (e.currentTarget as HTMLElement).style.color = t.gold; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.border; (e.currentTarget as HTMLElement).style.color = t.textFaint; }}>
+            <svg width="13" height="14" viewBox="0 0 13 14" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round">
+              <rect x="1" y="1" width="3" height="12" rx="0.5"/>
+              <rect x="5" y="1" width="3" height="12" rx="0.5"/>
+              <path d="M9 1.5 L12 2.5 L10 13.5 L7 12.5 Z"/>
+            </svg>
+          </Link>
           <Link href="/dashboard" style={{ ...headerBtn, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }} title="Dashboard"
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.gold; (e.currentTarget as HTMLElement).style.color = t.gold; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.border; (e.currentTarget as HTMLElement).style.color = t.textFaint; }}>
