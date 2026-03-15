@@ -137,9 +137,8 @@ function renderFirstPage(pdfBuffer) {
 
     execSync(
       `"${GS_BIN}" -dNOPAUSE -dBATCH -dSAFER` +
-      ` -sDEVICE=jpeg -dJPEGQ=88 -r96` +
+      ` -sDEVICE=jpeg -dJPEGQ=92 -r144` +
       ` -dFirstPage=1 -dLastPage=1` +
-      ` -dPDFFitPage -dFIXEDMEDIA -dDEVICEWIDTHPOINTS=400 -dDEVICEHEIGHTPOINTS=566` +
       ` -sOutputFile="${tmpJpg}" "${tmpPdf}"`,
       { stdio: "pipe" }
     );
