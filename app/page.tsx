@@ -25,10 +25,12 @@ interface Message {
   sources?: Source[];
   agentName?: string;
   agentIcon?: string;
+  agentId?: string;
   recipes?: ParsedRecipe[];
   followups?: string[];
   reflectionScore?: number;
   reflectionCritique?: string;
+  scoreOverridden?: boolean;
 }
 
 interface SimilarMatch {
@@ -206,7 +208,7 @@ export default function Home() {
       const decoder = new TextDecoder();
       let fullText = "";
       let sources: Source[] = [];
-      let agentInfo: { name: string; icon: string } | null = null;
+      let agentInfo: { name: string; icon: string; id: string } | null = null;
       let pendingFollowups: string[] = [];
       let pendingReflection: { score: number; critique: string } | null = null;
 
@@ -220,7 +222,7 @@ export default function Home() {
           try {
             const data = JSON.parse(line.slice(6));
             if (data.type === "agent") {
-              agentInfo = { name: data.agentName, icon: data.agentIcon };
+              agentInfo = { name: data.agentName, icon: data.agentIcon, id: data.agentId || "" };
               setStreamingAgent(agentInfo);
               if (data.agentId) setActiveAgentId(data.agentId);
             } else if (data.type === "status") {
@@ -263,6 +265,7 @@ export default function Home() {
                 sources,
                 agentName: agentInfo?.name,
                 agentIcon: agentInfo?.icon,
+                agentId: agentInfo?.id,
                 recipes: detectedRecipes.length > 0 ? detectedRecipes : undefined,
                 followups: pendingFollowups.length > 0 ? pendingFollowups : undefined,
                 reflectionScore: pendingReflection?.score,
@@ -466,15 +469,36 @@ export default function Home() {
                 {msg.role === "assistant" && msg.agentIcon && <Icon name={msg.agentIcon as Parameters<typeof Icon>[0]["name"]} size={12} style={{ color: t.gold, marginRight: "0.15rem", verticalAlign: "middle" }} />}
                 {msg.role === "user" ? "You" : msg.agentName || "XE5 Agent"}
                 {msg.role === "assistant" && msg.reflectionScore !== undefined && (
-                  <span title={msg.reflectionCritique} style={{
-                    fontSize: "0.5rem", padding: "0.1rem 0.35rem", borderRadius: "2px", letterSpacing: "0.05em",
-                    background: msg.reflectionScore >= 8 ? "rgba(100,180,100,0.12)" : msg.reflectionScore >= 6 ? "rgba(200,169,110,0.12)" : "rgba(200,100,100,0.12)",
-                    border: `1px solid ${msg.reflectionScore >= 8 ? "rgba(100,180,100,0.3)" : msg.reflectionScore >= 6 ? "rgba(200,169,110,0.3)" : "rgba(200,100,100,0.3)"}`,
-                    color: msg.reflectionScore >= 8 ? "#7ec87e" : msg.reflectionScore >= 6 ? t.gold : "#c87e7e",
-                    cursor: "default",
-                  }}>
-                    {msg.reflectionScore}/10
-                  </span>
+                  <>
+                    <span title={msg.scoreOverridden ? "Score overridden by you" : msg.reflectionCritique} style={{
+                      fontSize: "0.5rem", padding: "0.1rem 0.35rem", borderRadius: "2px", letterSpacing: "0.05em",
+                      background: msg.scoreOverridden ? "rgba(200,100,100,0.12)" : msg.reflectionScore >= 8 ? "rgba(100,180,100,0.12)" : msg.reflectionScore >= 6 ? "rgba(200,169,110,0.12)" : "rgba(200,100,100,0.12)",
+                      border: `1px solid ${msg.scoreOverridden ? "rgba(200,100,100,0.4)" : msg.reflectionScore >= 8 ? "rgba(100,180,100,0.3)" : msg.reflectionScore >= 6 ? "rgba(200,169,110,0.3)" : "rgba(200,100,100,0.3)"}`,
+                      color: msg.scoreOverridden ? "#c87e7e" : msg.reflectionScore >= 8 ? "#7ec87e" : msg.reflectionScore >= 6 ? t.gold : "#c87e7e",
+                      cursor: "default",
+                      textDecoration: msg.scoreOverridden ? "line-through" : "none",
+                    }}>
+                      {msg.reflectionScore}/10
+                    </span>
+                    {msg.scoreOverridden ? (
+                      <span style={{ fontSize: "0.48rem", color: "#c87e7e", letterSpacing: "0.05em" }}>✓ flagged</span>
+                    ) : (
+                      <button
+                        title="Disagree — agent misunderstood or scored itself too high"
+                        onClick={() => {
+                          setMessages(prev => prev.map((m, idx) => idx === i ? { ...m, scoreOverridden: true } : m));
+                          fetch("/api/feedback", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ sessionId, agentId: msg.agentId, correctedScore: 2 }),
+                          }).catch(() => {});
+                        }}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: "0 2px", fontSize: "0.55rem", color: "rgba(200,100,100,0.35)", lineHeight: 1, transition: "color 0.15s" }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "rgba(200,100,100,0.85)")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "rgba(200,100,100,0.35)")}
+                      >✗</button>
+                    )}
+                  </>
                 )}
               </div>
               <div style={{ maxWidth: msg.role === "user" ? "70%" : "100%", background: msg.role === "user" ? t.bgCardUser : t.bgCard, border: `1px solid ${msg.role === "user" ? (isDark ? "rgba(200,169,110,0.2)" : "rgba(176,136,64,0.25)") : t.borderCard}`, borderRadius: "4px", padding: "0.9rem 1.15rem", transition: "background 0.3s, border-color 0.3s" }}>
