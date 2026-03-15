@@ -40,10 +40,10 @@ interface DbStats {
   agentPrompts: { agent_id: string; updated_at: string }[];
 }
 
-function Bar({ value, max, color }: { value: number; max: number; color: string }) {
+function Bar({ value, max, color, trackColor }: { value: number; max: number; color: string; trackColor: string }) {
   const pct = max > 0 ? Math.max(2, (value / max) * 100) : 0;
   return (
-    <div style={{ flex: 1, height: 6, background: "rgba(255,255,255,0.05)", borderRadius: 3, overflow: "hidden" }}>
+    <div style={{ flex: 1, height: 6, background: trackColor, borderRadius: 3, overflow: "hidden" }}>
       <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 3, transition: "width 0.5s ease" }} />
     </div>
   );
@@ -89,6 +89,8 @@ export default function DbPage() {
         <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
           <Link href="/" style={{ color: t.gold, textDecoration: "none", fontSize: 12 }}>← Chat</Link>
           <Link href="/dashboard" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Dashboard</Link>
+          <Link href="/ingest" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Ingester</Link>
+          <Link href="/agents" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>How Agents Work</Link>
           <span style={{ color: t.gold, fontSize: 12 }}>Knowledge Base</span>
         </div>
         <button
@@ -155,7 +157,7 @@ export default function DbPage() {
                         <div style={{ width: 110, color: color, fontSize: 11, flexShrink: 0 }}>
                           {AGENT_LABELS[r.agent_id] || r.agent_id}
                         </div>
-                        <Bar value={r.chunks} max={max} color={color} />
+                        <Bar value={r.chunks} max={max} color={color} trackColor={dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.08)"} />
                         <div style={{ width: 50, textAlign: "right", color: t.textMuted, fontSize: 11, flexShrink: 0 }}>
                           {r.chunks.toLocaleString()}
                         </div>
@@ -178,7 +180,7 @@ export default function DbPage() {
                         <div style={{ width: 160, color: t.text, fontSize: 11, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {r.domain}
                         </div>
-                        <Bar value={r.chunks} max={max} color={t.gold} />
+                        <Bar value={r.chunks} max={max} color={t.gold} trackColor={dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.08)"} />
                         <div style={{ width: 50, textAlign: "right", color: t.textMuted, fontSize: 11, flexShrink: 0 }}>
                           {r.chunks.toLocaleString()}
                         </div>

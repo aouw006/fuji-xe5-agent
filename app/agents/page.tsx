@@ -197,6 +197,7 @@ export default function AgentsPage() {
           <Link href="/" style={{ color: t.gold, textDecoration: "none", fontSize: 12 }}>← Chat</Link>
           <Link href="/dashboard" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Dashboard</Link>
           <Link href="/db" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Knowledge Base</Link>
+          <Link href="/ingest" style={{ color: t.textMuted, textDecoration: "none", fontSize: 12 }}>Ingester</Link>
           <span style={{ color: t.gold, fontSize: 12 }}>How Agents Work</span>
         </div>
         <button onClick={toggleDark} style={{ background: "none", border: `1px solid ${t.border}`, color: t.textMuted, padding: "2px 10px", borderRadius: 3, cursor: "pointer", fontSize: 11 }}>
