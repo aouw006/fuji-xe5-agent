@@ -20,20 +20,20 @@ function formatSize(bytes: number | null): string {
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-function parseFilenameDate(filename: string): string | null {
+function parseFilenameDate(filename: string): { label: string; ts: number } | null {
   // yyyy-mm  e.g. 2024-03
   const ym = filename.match(/(\d{4})-(\d{2})/);
   if (ym) {
     const year = parseInt(ym[1]), month = parseInt(ym[2]);
     if (year >= 2000 && year <= 2035 && month >= 1 && month <= 12)
-      return `${MONTHS[month - 1]} ${year}`;
+      return { label: `${MONTHS[month - 1]} ${year}`, ts: year * 100 + month };
   }
   // mm.yyyy  e.g. 03.2024
   const my = filename.match(/(\d{2})\.(\d{4})/);
   if (my) {
     const month = parseInt(my[1]), year = parseInt(my[2]);
     if (year >= 2000 && year <= 2035 && month >= 1 && month <= 12)
-      return `${MONTHS[month - 1]} ${year}`;
+      return { label: `${MONTHS[month - 1]} ${year}`, ts: year * 100 + month };
   }
   return null;
 }
@@ -57,6 +57,9 @@ export default function LibraryPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "size" | "date">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Track thumbnails that failed to load so we can show the PDF icon fallback
+  const [failedThumbs, setFailedThumbs] = useState<Set<string>>(new Set());
 
   const t = isDark ? darkTheme : lightTheme;
 
@@ -75,6 +78,15 @@ export default function LibraryPage() {
     localStorage.setItem("xe5_theme", next ? "dark" : "light");
   }
 
+  function handleSortClick(col: "name" | "size" | "date") {
+    if (sortBy === col) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(col);
+      setSortDir(col === "date" ? "desc" : "asc");
+    }
+  }
+
   useEffect(() => {
     fetch("/api/library")
       .then(r => r.json())
@@ -89,11 +101,32 @@ export default function LibraryPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     const result = q ? files.filter(f => f.name.toLowerCase().includes(q)) : [...files];
-    if (sortBy === "name") result.sort((a, b) => a.name.localeCompare(b.name));
-    if (sortBy === "size") result.sort((a, b) => (b.size || 0) - (a.size || 0));
-    if (sortBy === "date") result.sort((a, b) => (b.modifiedTime || "").localeCompare(a.modifiedTime || ""));
+
+    result.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "name") {
+        cmp = a.name.localeCompare(b.name);
+      } else if (sortBy === "size") {
+        cmp = (a.size || 0) - (b.size || 0);
+      } else if (sortBy === "date") {
+        const da = parseFilenameDate(a.name);
+        const db = parseFilenameDate(b.name);
+        // Files without a parsed date go to the end regardless of direction
+        if (!da && !db) cmp = 0;
+        else if (!da) return 1;
+        else if (!db) return -1;
+        else cmp = da.ts - db.ts;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
     return result;
-  }, [files, search, sortBy]);
+  }, [files, search, sortBy, sortDir]);
+
+  function thumbSrc(file: DriveFile): string | null {
+    if (!file.thumbnailLink) return null;
+    return `/api/library/thumbnail?src=${encodeURIComponent(file.thumbnailLink)}`;
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'Inter', sans-serif", transition: "background 0.3s, color 0.3s" }}>
@@ -138,14 +171,18 @@ export default function LibraryPage() {
             />
             <div style={{ display: "flex", gap: "0.4rem" }}>
               {(["name", "size", "date"] as const).map(s => (
-                <button key={s} onClick={() => setSortBy(s)} style={{
+                <button key={s} onClick={() => handleSortClick(s)} style={{
                   background: sortBy === s ? t.goldBg : "transparent",
                   border: `1px solid ${sortBy === s ? t.gold : t.border}`,
                   color: sortBy === s ? t.gold : t.textMuted,
                   padding: "0.35rem 0.7rem", borderRadius: "2px", cursor: "pointer",
                   fontSize: "0.58rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                  display: "flex", alignItems: "center", gap: "0.3rem",
                 }}>
                   {s}
+                  {sortBy === s && (
+                    <span style={{ fontSize: "0.6rem" }}>{sortDir === "asc" ? "↑" : "↓"}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -174,10 +211,13 @@ export default function LibraryPage() {
                 No magazines match &quot;{search}&quot;
               </div>
             )}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(175px, 1fr))", gap: "1rem" }}>
               {filtered.map(file => {
                 const displayName = file.name.replace(/\.pdf$/i, "");
                 const parsedDate = parseFilenameDate(file.name);
+                const thumb = thumbSrc(file);
+                const thumbFailed = failedThumbs.has(file.id);
+
                 return (
                   <a
                     key={file.id}
@@ -197,21 +237,16 @@ export default function LibraryPage() {
                     >
                       {/* Thumbnail */}
                       <div style={{ width: "100%", aspectRatio: "3/4", background: t.bgInput, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                        {file.thumbnailLink ? (
+                        {thumb && !thumbFailed ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={file.thumbnailLink}
+                            src={thumb}
                             alt={displayName}
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            onError={e => {
-                              // Fallback to PDF icon if thumbnail fails to load
-                              (e.currentTarget as HTMLImageElement).style.display = "none";
-                              const parent = (e.currentTarget as HTMLImageElement).parentElement;
-                              if (parent) parent.setAttribute("data-fallback", "true");
-                            }}
+                            onError={() => setFailedThumbs(prev => new Set(Array.from(prev).concat(file.id)))}
                           />
                         ) : (
-                          <div style={{ width: "60%", height: "75%" }}>
+                          <div style={{ width: "55%", height: "70%" }}>
                             <PdfIcon color={t.gold} />
                           </div>
                         )}
@@ -227,7 +262,7 @@ export default function LibraryPage() {
                           {displayName}
                         </div>
                         <div style={{ fontSize: "0.58rem", color: t.textMuted, display: "flex", flexDirection: "column", gap: "0.1rem" }}>
-                          {parsedDate && <span style={{ color: t.gold }}>{parsedDate}</span>}
+                          {parsedDate && <span style={{ color: t.gold }}>{parsedDate.label}</span>}
                           <span>{formatSize(file.size)}</span>
                         </div>
                       </div>
