@@ -44,9 +44,9 @@ async function getToken(): Promise<string | null> {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const fileId = params.id;
+  const { id: fileId } = await params;
   const fileName = req.nextUrl.searchParams.get("name") || `${fileId}.pdf`;
 
   const token = await getToken();
