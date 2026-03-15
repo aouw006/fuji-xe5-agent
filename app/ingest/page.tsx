@@ -34,6 +34,7 @@ export default function IngestPage() {
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
   }, []);
+  const toggleTheme = () => { const next = !isDark; setIsDark(next); localStorage.setItem("xe5_theme", next ? "dark" : "light"); };
   const t = isDark ? darkTheme : lightTheme;
   const goldBorder = isDark ? "rgba(200,169,110,0.25)" : "rgba(176,136,64,0.3)";
 
