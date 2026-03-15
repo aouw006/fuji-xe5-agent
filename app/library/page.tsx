@@ -12,6 +12,17 @@ interface DriveFile {
   thumbnailLink: string | null;
 }
 
+type Category = "FujiLove" | "Gear Talk" | "Lens Guide" | "Other";
+
+function getCategory(name: string): Category {
+  if (name.includes("FujiLove Gear Talk") || name.includes("FujiLove-Gear-Talk")) return "Gear Talk";
+  if (name.includes("FujiLove-Magazine") || name.includes("FujiLove Magazine")) return "FujiLove";
+  if (name.toLowerCase().includes("mm")) return "Lens Guide";
+  return "Other";
+}
+
+const CATEGORIES: Category[] = ["FujiLove", "Gear Talk", "Lens Guide", "Other"];
+
 function formatSize(bytes: number | null): string {
   if (!bytes) return "—";
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -21,14 +32,12 @@ function formatSize(bytes: number | null): string {
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 function parseFilenameDate(filename: string): { label: string; ts: number } | null {
-  // yyyy-mm  e.g. 2024-03
   const ym = filename.match(/(\d{4})-(\d{2})/);
   if (ym) {
     const year = parseInt(ym[1]), month = parseInt(ym[2]);
     if (year >= 2000 && year <= 2035 && month >= 1 && month <= 12)
       return { label: `${MONTHS[month - 1]} ${year}`, ts: year * 100 + month };
   }
-  // mm.yyyy  e.g. 03.2024
   const my = filename.match(/(\d{2})\.(\d{4})/);
   if (my) {
     const month = parseInt(my[1]), year = parseInt(my[2]);
@@ -56,14 +65,13 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "size" | "date">("name");
+  const [activeCategory, setActiveCategory] = useState<Category | "All">("FujiLove");
+  const [sortBy, setSortBy] = useState<"name" | "size" | "date">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  // Track thumbnails that failed to load so we can show the PDF icon fallback
   const [failedThumbs, setFailedThumbs] = useState<Set<string>>(new Set());
 
   const t = isDark ? darkTheme : lightTheme;
 
-  // Sync theme with localStorage — same pattern as all other pages
   useEffect(() => {
     const saved = localStorage.getItem("xe5_theme");
     setIsDark(saved !== "light");
@@ -98,9 +106,23 @@ export default function LibraryPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Count per category for the filter pills
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: files.length };
+    for (const f of files) {
+      const c = getCategory(f.name);
+      counts[c] = (counts[c] || 0) + 1;
+    }
+    return counts;
+  }, [files]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    const result = q ? files.filter(f => f.name.toLowerCase().includes(q)) : [...files];
+    let result = activeCategory === "All"
+      ? [...files]
+      : files.filter(f => getCategory(f.name) === activeCategory);
+
+    if (q) result = result.filter(f => f.name.toLowerCase().includes(q));
 
     result.sort((a, b) => {
       let cmp = 0;
@@ -111,7 +133,6 @@ export default function LibraryPage() {
       } else if (sortBy === "date") {
         const da = parseFilenameDate(a.name);
         const db = parseFilenameDate(b.name);
-        // Files without a parsed date go to the end regardless of direction
         if (!da && !db) cmp = 0;
         else if (!da) return 1;
         else if (!db) return -1;
@@ -121,7 +142,7 @@ export default function LibraryPage() {
     });
 
     return result;
-  }, [files, search, sortBy, sortDir]);
+  }, [files, search, activeCategory, sortBy, sortDir]);
 
   function thumbSrc(file: DriveFile): string | null {
     if (!file.thumbnailLink) return null;
@@ -149,7 +170,7 @@ export default function LibraryPage() {
 
       <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem 2rem" }}>
         {/* Title */}
-        <div style={{ marginBottom: "2rem" }}>
+        <div style={{ marginBottom: "1.75rem" }}>
           <div style={{ fontSize: "0.55rem", letterSpacing: "0.25em", textTransform: "uppercase", color: t.textMuted, marginBottom: "0.4rem" }}>Google Drive</div>
           <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "2rem", fontWeight: 900, margin: 0, color: t.text }}>Magazine Library</h1>
           {!loading && !error && (
@@ -157,36 +178,62 @@ export default function LibraryPage() {
           )}
         </div>
 
-        {/* Search + Sort */}
         {!loading && !error && (
-          <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1.5rem", alignItems: "center" }}>
-            <input
-              placeholder="Search magazines..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                flex: 1, background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: "3px",
-                padding: "0.5rem 0.85rem", color: t.text, fontSize: "0.8rem", outline: "none",
-              }}
-            />
-            <div style={{ display: "flex", gap: "0.4rem" }}>
-              {(["name", "size", "date"] as const).map(s => (
-                <button key={s} onClick={() => handleSortClick(s)} style={{
-                  background: sortBy === s ? t.goldBg : "transparent",
-                  border: `1px solid ${sortBy === s ? t.gold : t.border}`,
-                  color: sortBy === s ? t.gold : t.textMuted,
-                  padding: "0.35rem 0.7rem", borderRadius: "2px", cursor: "pointer",
-                  fontSize: "0.58rem", letterSpacing: "0.1em", textTransform: "uppercase",
-                  display: "flex", alignItems: "center", gap: "0.3rem",
-                }}>
-                  {s}
-                  {sortBy === s && (
-                    <span style={{ fontSize: "0.6rem" }}>{sortDir === "asc" ? "↑" : "↓"}</span>
-                  )}
-                </button>
-              ))}
+          <>
+            {/* Search + Sort */}
+            <div style={{ display: "flex", gap: "0.75rem", marginBottom: "0.85rem", alignItems: "center" }}>
+              <input
+                placeholder="Search magazines..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{
+                  flex: 1, background: t.bgInput, border: `1px solid ${t.border}`, borderRadius: "3px",
+                  padding: "0.5rem 0.85rem", color: t.text, fontSize: "0.8rem", outline: "none",
+                }}
+              />
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                {(["name", "size", "date"] as const).map(s => (
+                  <button key={s} onClick={() => handleSortClick(s)} style={{
+                    background: sortBy === s ? t.goldBg : "transparent",
+                    border: `1px solid ${sortBy === s ? t.gold : t.border}`,
+                    color: sortBy === s ? t.gold : t.textMuted,
+                    padding: "0.35rem 0.7rem", borderRadius: "2px", cursor: "pointer",
+                    fontSize: "0.58rem", letterSpacing: "0.1em", textTransform: "uppercase",
+                    display: "flex", alignItems: "center", gap: "0.3rem",
+                  }}>
+                    {s}
+                    {sortBy === s && <span style={{ fontSize: "0.6rem" }}>{sortDir === "asc" ? "↑" : "↓"}</span>}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+
+            {/* Category filter pills */}
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
+              {(["All", ...CATEGORIES] as const).map(cat => {
+                const active = activeCategory === cat;
+                const count = categoryCounts[cat] || 0;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    style={{
+                      background: active ? t.goldBg : "transparent",
+                      border: `1px solid ${active ? t.gold : t.border}`,
+                      color: active ? t.gold : t.textMuted,
+                      padding: "0.3rem 0.75rem", borderRadius: "20px", cursor: "pointer",
+                      fontSize: "0.62rem", letterSpacing: "0.06em",
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.borderColor = t.gold + "88"; (e.currentTarget as HTMLElement).style.color = t.text; } }}
+                    onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.borderColor = t.border; (e.currentTarget as HTMLElement).style.color = t.textMuted; } }}
+                  >
+                    {cat} <span style={{ opacity: 0.6, fontSize: "0.55rem" }}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {/* Loading */}
@@ -208,11 +255,12 @@ export default function LibraryPage() {
           <>
             {filtered.length === 0 && (
               <div style={{ textAlign: "center", padding: "4rem", color: t.textMuted, fontSize: "0.8rem" }}>
-                No magazines match &quot;{search}&quot;
+                No magazines found{search ? ` matching "${search}"` : ""}
               </div>
             )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(175px, 1fr))", gap: "1rem" }}>
               {filtered.map(file => {
+                const category = getCategory(file.name);
                 const displayName = file.name.replace(/\.pdf$/i, "");
                 const parsedDate = parseFilenameDate(file.name);
                 const thumb = thumbSrc(file);
@@ -230,7 +278,7 @@ export default function LibraryPage() {
                       style={{
                         background: t.bgCard, border: `1px solid ${t.borderCard}`, borderRadius: "4px",
                         overflow: "hidden", transition: "border-color 0.2s, transform 0.15s",
-                        cursor: "pointer",
+                        cursor: "pointer", height: "100%",
                       }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = t.gold + "66"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = t.borderCard; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
@@ -253,17 +301,28 @@ export default function LibraryPage() {
                       </div>
 
                       {/* Info */}
-                      <div style={{ padding: "0.65rem 0.75rem" }}>
+                      <div style={{ padding: "0.7rem 0.75rem" }}>
+                        {/* Category as title */}
+                        <div style={{ fontSize: "0.8rem", fontWeight: 700, color: t.text, marginBottom: "0.2rem" }}>
+                          {category}
+                        </div>
+                        {/* Parsed date */}
+                        {parsedDate && (
+                          <div style={{ fontSize: "0.62rem", color: t.gold, marginBottom: "0.25rem" }}>
+                            {parsedDate.label}
+                          </div>
+                        )}
+                        {/* Filename small */}
                         <div style={{
-                          fontSize: "0.72rem", fontWeight: 600, color: t.text,
+                          fontSize: "0.55rem", color: t.textMuted, lineHeight: 1.3,
                           display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-                          overflow: "hidden", lineHeight: 1.35, marginBottom: "0.3rem",
+                          overflow: "hidden",
                         }} title={displayName}>
                           {displayName}
                         </div>
-                        <div style={{ fontSize: "0.58rem", color: t.textMuted, display: "flex", flexDirection: "column", gap: "0.1rem" }}>
-                          {parsedDate && <span style={{ color: t.gold }}>{parsedDate.label}</span>}
-                          <span>{formatSize(file.size)}</span>
+                        {/* Size */}
+                        <div style={{ fontSize: "0.52rem", color: t.textFaint, marginTop: "0.25rem" }}>
+                          {formatSize(file.size)}
                         </div>
                       </div>
                     </div>
