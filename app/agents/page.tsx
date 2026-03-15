@@ -4,13 +4,49 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { darkTheme, lightTheme } from "@/lib/theme";
 
+const AGENT_COLORS: Record<string, string> = {
+  film_recipes:    "#c8a96e",
+  camera_settings: "#7eb8d4",
+  locations:       "#7ed4a0",
+  gear:            "#d4a07e",
+  comparison:      "#b07ed4",
+  community:       "#d4d07e",
+};
+
+const AGENT_LABELS: Record<string, string> = {
+  film_recipes:    "Film Recipes",
+  camera_settings: "Camera Settings",
+  locations:       "Locations",
+  gear:            "Gear",
+  comparison:      "Comparison",
+  community:       "Community",
+};
+
+interface HistoryEntry {
+  id: number;
+  agent_id: string;
+  trigger_score: number;
+  avg_score: number;
+  critique_summary: string;
+  created_at: string;
+}
+
 export default function AgentsPage() {
   const [dark, setDark] = useState(true);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [expanded, setExpanded] = useState<number | null>(null);
   const t = dark ? darkTheme : lightTheme;
 
   useEffect(() => {
     const saved = localStorage.getItem("xe5_theme");
     if (saved) setDark(saved === "dark");
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/prompt-history")
+      .then(r => r.json())
+      .then(d => setHistory(Array.isArray(d) ? d : []))
+      .catch(() => {});
   }, []);
 
   function toggleDark() {
@@ -308,6 +344,50 @@ export default function AgentsPage() {
             </div>
           ))}
         </div>
+
+        {/* Retraining log */}
+        {section("Retraining Log")}
+        {history.length === 0 ? (
+          <div style={{ padding: "1rem", background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 4, fontSize: "0.74rem", color: t.textMuted }}>
+            No retraining events yet. Self-improvement triggers when an agent&apos;s rolling average reflection score drops below 7 (min 3 samples).
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            {history.map(entry => (
+              <div key={entry.id} style={{ background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: 4, overflow: "hidden" }}>
+                <div
+                  onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
+                  style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem 1rem", cursor: "pointer" }}
+                >
+                  <span style={{ fontSize: "0.68rem", color: AGENT_COLORS[entry.agent_id] || t.gold, border: `1px solid ${AGENT_COLORS[entry.agent_id] || t.border}`, borderRadius: 3, padding: "1px 7px", flexShrink: 0 }}>
+                    {AGENT_LABELS[entry.agent_id] || entry.agent_id}
+                  </span>
+                  <span style={{ fontSize: "0.7rem", color: t.textMuted, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {entry.critique_summary || "No critique summary"}
+                  </span>
+                  <span style={{ fontSize: "0.65rem", color: "#e88", flexShrink: 0 }}>
+                    score {entry.trigger_score} · avg {Number(entry.avg_score).toFixed(1)}
+                  </span>
+                  <span style={{ fontSize: "0.62rem", color: t.textFaint, flexShrink: 0 }}>
+                    {new Date(entry.created_at).toLocaleDateString()}
+                  </span>
+                  <span style={{ fontSize: "0.65rem", color: t.textFaint }}>{expanded === entry.id ? "▲" : "▼"}</span>
+                </div>
+                {expanded === entry.id && (
+                  <div style={{ borderTop: `1px solid ${t.border}`, padding: "0.75rem 1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    <div>
+                      <div style={{ fontSize: "0.58rem", color: t.textFaint, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "0.3rem" }}>Critiques that triggered retraining</div>
+                      <div style={{ fontSize: "0.72rem", color: t.textMuted, lineHeight: 1.7 }}>{entry.critique_summary}</div>
+                    </div>
+                    <div style={{ fontSize: "0.65rem", color: t.textVeryFaint }}>
+                      Triggered at {new Date(entry.created_at).toLocaleString()} · Score {entry.trigger_score}/10 · Rolling avg {Number(entry.avg_score).toFixed(1)}/10
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
       </div>
     </div>

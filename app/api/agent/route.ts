@@ -40,6 +40,9 @@ async function maybeImprovePrompt(agentId: string, score: number, currentPrompt:
     if (improved && improved.length > 100) {
       await saveAgentPrompt(agentId, improved);
       console.log(`[prompt-evolution] updated prompt for ${agentId} (avg score was ${avgScore.toFixed(1)})`);
+      const { logPromptRewrite } = await import("@/lib/memory");
+      const critiqueSummary = history.map(r => r.critique).filter(Boolean).join(" | ").slice(0, 500);
+      await logPromptRewrite(agentId, currentPrompt, improved, score, avgScore, critiqueSummary);
     }
   } catch (e) {
     console.error("[prompt-evolution] failed:", e);
