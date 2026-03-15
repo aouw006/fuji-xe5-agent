@@ -14,10 +14,14 @@
  *   git add public/thumbnails && git commit -m "Add magazine thumbnails" && git push
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
+import { tmpdir } from "os";
 import crypto from "crypto";
+
+const GS_BIN = `C:\\Program Files\\gs\\gs10.06.0\\bin\\gswin64c.exe`;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -112,65 +116,39 @@ async function downloadPdfStart(token, fileId, bytes = 6 * 1024 * 1024) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-// ── PDF page 1 → JPEG ─────────────────────────────────────────────────────────
-async function renderFirstPage(pdfBuffer) {
-  const { createCanvas } = await import("canvas");
-
-  // Try legacy build first (better Node.js compat), fall back to main
-  let getDocument;
-  try {
-    const mod = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    getDocument = mod.getDocument;
-  } catch {
-    try {
-      const mod = await import("pdfjs-dist/legacy/build/pdf.js");
-      getDocument = mod.getDocument;
-    } catch {
-      const mod = await import("pdfjs-dist");
-      getDocument = mod.getDocument;
-    }
-  }
-
-  // Minimal canvas factory required by pdfjs in Node.js
-  const canvasFactory = {
-    create: (w, h) => {
-      const canvas = createCanvas(w, h);
-      return { canvas, context: canvas.getContext("2d") };
-    },
-    reset: (obj, w, h) => {
-      obj.canvas.width = w;
-      obj.canvas.height = h;
-    },
-    destroy: (obj) => {
-      obj.canvas.width = 0;
-      obj.canvas.height = 0;
-    },
-  };
-
-  const pdf = await getDocument({
-    data: new Uint8Array(pdfBuffer),
-    canvasFactory,
-    isEvalSupported: false,
-    useSystemFonts: true,
-    disableFontFace: true,
-  }).promise;
-
-  const page = await pdf.getPage(1);
-
-  // Render at ~400px wide
-  const naturalViewport = page.getViewport({ scale: 1 });
-  const scale = 400 / naturalViewport.width;
-  const viewport = page.getViewport({ scale });
-
-  const { canvas, context } = canvasFactory.create(
-    Math.round(viewport.width),
-    Math.round(viewport.height)
+// Full download fallback for non-linearized PDFs
+async function downloadPdfFull(token, fileId) {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    { headers: { Authorization: `Bearer ${token}` } }
   );
+  if (!res.ok) throw new Error(`Full download failed: HTTP ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
 
-  await page.render({ canvasContext: context, viewport }).promise;
-  await pdf.destroy();
+// ── PDF page 1 → JPEG via Ghostscript ────────────────────────────────────────
+function renderFirstPage(pdfBuffer) {
+  const id = crypto.randomBytes(8).toString("hex");
+  const tmpPdf = join(tmpdir(), `thumb-${id}.pdf`);
+  const tmpJpg = join(tmpdir(), `thumb-${id}.jpg`);
 
-  return canvas.toBuffer("image/jpeg", { quality: 0.85 });
+  try {
+    writeFileSync(tmpPdf, pdfBuffer);
+
+    execSync(
+      `"${GS_BIN}" -dNOPAUSE -dBATCH -dSAFER` +
+      ` -sDEVICE=jpeg -dJPEGQ=88 -r96` +
+      ` -dFirstPage=1 -dLastPage=1` +
+      ` -dPDFFitPage -dFIXEDMEDIA -dDEVICEWIDTHPOINTS=400 -dDEVICEHEIGHTPOINTS=566` +
+      ` -sOutputFile="${tmpJpg}" "${tmpPdf}"`,
+      { stdio: "pipe" }
+    );
+
+    return readFileSync(tmpJpg);
+  } finally {
+    try { unlinkSync(tmpPdf); } catch { /* ignore */ }
+    try { unlinkSync(tmpJpg); } catch { /* ignore */ }
+  }
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -219,8 +197,16 @@ async function main() {
     process.stdout.write(`${prefix} ⟳ GEN    ${file.name} (${sizeMb} MB)...`);
 
     try {
-      const pdfBuffer = await downloadPdfStart(token, file.id);
-      const jpeg = await renderFirstPage(pdfBuffer);
+      let pdfBuffer = await downloadPdfStart(token, file.id);
+      let jpeg;
+      try {
+        jpeg = renderFirstPage(pdfBuffer);
+      } catch (renderErr) {
+        // Ghostscript sometimes fails on partial downloads — retry with full file
+        process.stdout.write(` [retrying full download]...`);
+        pdfBuffer = await downloadPdfFull(token, file.id);
+        jpeg = renderFirstPage(pdfBuffer);
+      }
       writeFileSync(thumbPath, jpeg);
       process.stdout.write(` ✓\n`);
       generated++;
