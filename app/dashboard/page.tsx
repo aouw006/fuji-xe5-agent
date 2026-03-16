@@ -117,7 +117,7 @@ function CustomTooltip({ active, payload, label, t }: { active?: boolean; payloa
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPrompt, setSelectedPrompt] = useState<DashboardData["promptLog"][0] | null>(null);
@@ -125,7 +125,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const saved = localStorage.getItem("xe5_theme");
-    setIsDark(saved !== "light");
+    setIsDark(saved === "dark");
     const handler = (e: StorageEvent) => { if (e.key === "xe5_theme") setIsDark(e.newValue !== "light"); };
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
