@@ -126,6 +126,7 @@ export interface SearchStats {
   pct: number;
   usageByDay: { date: string; count: number }[];
   usageByAgent: { agent_id: string; count: number }[];
+  usageByProvider: { provider: string; count: number }[];
   activeProvider: SearchProvider;
 }
 
@@ -135,20 +136,21 @@ export async function getSearchStats(): Promise<SearchStats> {
   const [activeProvider, limit] = await Promise.all([getActiveProvider(), getTavilyLimit()]);
 
   if (!SUPABASE_URL || !SUPABASE_KEY) {
-    return { searches: 0, scrapes: 0, total: 0, limit, remaining: limit, pct: 0, usageByDay: [], usageByAgent: [], activeProvider };
+    return { searches: 0, scrapes: 0, total: 0, limit, remaining: limit, pct: 0, usageByDay: [], usageByAgent: [], usageByProvider: [], activeProvider };
   }
 
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/search_usage?created_at=gte.${firstOfMonth}&select=is_scrape,agent_id,created_at`,
+      `${SUPABASE_URL}/rest/v1/search_usage?created_at=gte.${firstOfMonth}&select=is_scrape,agent_id,created_at,provider`,
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
     );
     if (!res.ok) throw new Error("Failed");
-    const rows: { is_scrape: boolean; agent_id: string; created_at: string }[] = await res.json();
+    const rows: { is_scrape: boolean; agent_id: string; created_at: string; provider?: string }[] = await res.json();
 
     let searches = 0, scrapes = 0;
     const dayMap: Record<string, number> = {};
     const agentMap: Record<string, number> = {};
+    const providerMap: Record<string, number> = {};
 
     for (const row of rows) {
       if (row.is_scrape) scrapes++; else searches++;
@@ -156,6 +158,8 @@ export async function getSearchStats(): Promise<SearchStats> {
       dayMap[date] = (dayMap[date] || 0) + 1;
       const a = row.agent_id || "unknown";
       agentMap[a] = (agentMap[a] || 0) + 1;
+      const p = row.provider || "tavily";
+      providerMap[p] = (providerMap[p] || 0) + 1;
     }
 
     const total = searches + scrapes;
@@ -165,15 +169,18 @@ export async function getSearchStats(): Promise<SearchStats> {
     const usageByAgent = Object.entries(agentMap)
       .map(([agent_id, count]) => ({ agent_id, count }))
       .sort((a, b) => b.count - a.count);
+    const usageByProvider = Object.entries(providerMap)
+      .map(([provider, count]) => ({ provider, count }))
+      .sort((a, b) => b.count - a.count);
 
     return {
       searches, scrapes, total, limit,
       remaining: Math.max(0, limit - total),
       pct: Math.min((total / limit) * 100, 100),
-      usageByDay, usageByAgent, activeProvider,
+      usageByDay, usageByAgent, usageByProvider, activeProvider,
     };
   } catch {
-    return { searches: 0, scrapes: 0, total: 0, limit, remaining: limit, pct: 0, usageByDay: [], usageByAgent: [], activeProvider };
+    return { searches: 0, scrapes: 0, total: 0, limit, remaining: limit, pct: 0, usageByDay: [], usageByAgent: [], usageByProvider: [], activeProvider };
   }
 }
 
