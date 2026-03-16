@@ -566,7 +566,7 @@ export default function Dashboard() {
                 <div className="dash-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
 
                   {/* Status */}
-                  <Card t={t} title="Search provider">
+                  <Card t={t} title="Active provider">
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                       <div style={{
                         fontSize: "1.4rem", fontWeight: 700, fontFamily: "DM Mono, monospace",
@@ -576,7 +576,9 @@ export default function Dashboard() {
                         {ss.activeProvider}
                       </div>
                       <div style={{ fontSize: "0.62rem", color: t.textVeryFaint, lineHeight: 1.6 }}>
-                        {ss.activeProvider === "tavily" ? "Live search active" : "KB only — no live search"}
+                        {ss.activeProvider === "tavily" && "Live search via Tavily"}
+                        {ss.activeProvider === "serper" && "Live search via Google (Serper)"}
+                        {ss.activeProvider === "none" && "KB only — no live search"}
                         <br />Change in Settings ⚙
                       </div>
                     </div>
@@ -587,29 +589,73 @@ export default function Dashboard() {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
                       <StatPill t={t} label="Searches" value={String(ss.searches)} />
                       <StatPill t={t} label="Page reads" value={String(ss.scrapes)} />
-                      <StatPill t={t} label="Remaining" value={String(ss.remaining)} sub={`of ${ss.limit}`} />
+                      {ss.activeProvider === "tavily"
+                        ? <StatPill t={t} label="Remaining" value={String(ss.remaining)} sub={`of ${ss.limit}`} />
+                        : ss.activeProvider === "serper"
+                        ? <StatPill t={t} label="Est. cost" value={`$${(ss.total * 0.001).toFixed(2)}`} sub="@$1/1k" />
+                        : <StatPill t={t} label="Provider" value="None" sub="KB only" />
+                      }
                     </div>
                   </Card>
 
-                  {/* Tavily credit gauge */}
-                  <Card t={t} title="Tavily — monthly credit usage" span={2}>
-                    <div style={{ marginBottom: "0.5rem", display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: "0.65rem", color: t.textMuted }}>
-                        {ss.total} used · {ss.remaining} remaining · resets 1st of month
-                      </span>
-                      <span style={{ fontSize: "0.65rem", color: gaugeColor, fontFamily: "DM Mono, monospace", fontWeight: 600 }}>
-                        {ss.total} / {ss.limit}
-                      </span>
-                    </div>
-                    <div style={{ height: "8px", background: t.bgCard, borderRadius: "4px", border: `1px solid ${t.border}`, marginBottom: "0.5rem" }}>
-                      <div style={{ height: "100%", width: `${ss.pct}%`, background: gaugeColor, borderRadius: "4px", transition: "width 0.5s ease" }} />
-                    </div>
-                    {ss.pct > 80 && (
-                      <div style={{ fontSize: "0.62rem", color: "#e0a855", lineHeight: 1.5 }}>
-                        ⚠ Running low — switch to None in Settings to preserve remaining credits.
+                  {/* Provider gauge — Tavily */}
+                  {ss.activeProvider === "tavily" && (
+                    <Card t={t} title="Tavily — monthly credit usage" span={2}>
+                      <div style={{ marginBottom: "0.5rem", display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: "0.65rem", color: t.textMuted }}>
+                          {ss.total} used · {ss.remaining} remaining · resets 1st of month
+                        </span>
+                        <span style={{ fontSize: "0.65rem", color: gaugeColor, fontFamily: "DM Mono, monospace", fontWeight: 600 }}>
+                          {ss.total} / {ss.limit}
+                        </span>
                       </div>
-                    )}
-                  </Card>
+                      <div style={{ height: "8px", background: t.bgCard, borderRadius: "4px", border: `1px solid ${t.border}`, marginBottom: "0.5rem" }}>
+                        <div style={{ height: "100%", width: `${ss.pct}%`, background: gaugeColor, borderRadius: "4px", transition: "width 0.5s ease" }} />
+                      </div>
+                      {ss.pct > 80 && (
+                        <div style={{ fontSize: "0.62rem", color: "#e0a855", lineHeight: 1.5 }}>
+                          ⚠ Running low — switch to Serper or None in Settings to preserve remaining credits.
+                        </div>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* Provider gauge — Serper */}
+                  {ss.activeProvider === "serper" && (
+                    <Card t={t} title="Serper — usage this month" span={2}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+                        <StatPill t={t} label="Total calls" value={String(ss.total)} />
+                        <StatPill t={t} label="Est. cost" value={`$${(ss.total * 0.001).toFixed(3)}`} />
+                        <StatPill t={t} label="Rate" value="$1 / 1k" sub="queries" />
+                      </div>
+                      <div style={{ fontSize: "0.62rem", color: t.textVeryFaint, lineHeight: 1.6 }}>
+                        Serper charges per query. $50 credit = 50,000 queries.
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* By provider breakdown — shown when both have been used */}
+                  {ss.usageByProvider.length > 1 && (
+                    <Card t={t} title="Usage by provider — this month" span={2}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                        {ss.usageByProvider.map(p => {
+                          const total = ss.usageByProvider.reduce((s, x) => s + x.count, 0);
+                          const pct = total > 0 ? (p.count / total) * 100 : 0;
+                          return (
+                            <div key={p.provider}>
+                              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.2rem" }}>
+                                <span style={{ fontSize: "0.65rem", color: t.text, textTransform: "uppercase", fontFamily: "DM Mono, monospace" }}>{p.provider}</span>
+                                <span style={{ fontSize: "0.65rem", color: t.gold, fontFamily: "DM Mono, monospace" }}>{p.count} ({pct.toFixed(0)}%)</span>
+                              </div>
+                              <div style={{ height: "4px", background: t.bgCard, borderRadius: "2px", border: `1px solid ${t.border}` }}>
+                                <div style={{ height: "100%", width: `${pct}%`, background: t.gold, borderRadius: "2px", opacity: 0.7 }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  )}
 
                   {/* Daily chart */}
                   <Card t={t} title="Daily usage — this month" span={2}>
