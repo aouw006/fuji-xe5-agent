@@ -706,8 +706,6 @@ export default function Dashboard() {
                 </div>
               );
             })()}
-          </>
-        )}
 
             {/* ── Activity tab ──────────────────────────────────────────────── */}
             {activeTab === "activity" && (
@@ -776,6 +774,8 @@ export default function Dashboard() {
                 })}
               </div>
             )}
+          </>
+        )}
       </main>
     </div>
   );
