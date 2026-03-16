@@ -122,7 +122,7 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPrompt, setSelectedPrompt] = useState<DashboardData["promptLog"][0] | null>(null);
-  const [activeTab, setActiveTab] = useState<"cost" | "agents" | "prompts" | "recipes" | "search">("cost");
+  const [activeTab, setActiveTab] = useState<"cost" | "agents" | "prompts" | "recipes" | "search" | "activity">("cost");
 
   useEffect(() => {
     const saved = localStorage.getItem("xe5_theme");
@@ -199,7 +199,7 @@ export default function Dashboard() {
 
             {/* ── Tabs ────────────────────────────────────────────────────── */}
             <div style={{ display: "flex", gap: "0.25rem", marginBottom: "1rem", borderBottom: `1px solid ${t.border}`, paddingBottom: "0" }}>
-              {(["cost", "agents", "prompts", "recipes", "search"] as const).map((tab) => (
+              {(["cost", "agents", "prompts", "recipes", "search", "activity"] as const).map((tab) => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
                   background: "transparent",
                   border: "none",
@@ -215,8 +215,8 @@ export default function Dashboard() {
                   alignItems: "center",
                   gap: "0.3rem",
                 }}>
-                  <Icon name={tab === "cost" ? "cost" : tab === "agents" ? "agents" : tab === "prompts" ? "inspect" : tab === "search" ? "inspect" : "film"} size={12} />
-                  {tab === "cost" ? "Cost" : tab === "agents" ? "Agents" : tab === "prompts" ? "Prompts" : tab === "search" ? "Search" : "Recipes"}
+                  <Icon name={tab === "cost" ? "cost" : tab === "agents" ? "agents" : tab === "search" ? "inspect" : tab === "activity" ? "inspect" : tab === "prompts" ? "inspect" : "film"} size={12} />
+                  {tab === "cost" ? "Cost" : tab === "agents" ? "Agents" : tab === "prompts" ? "Prompts" : tab === "search" ? "Search" : tab === "activity" ? "Activity" : "Recipes"}
                 </button>
               ))}
             </div>
@@ -708,6 +708,74 @@ export default function Dashboard() {
             })()}
           </>
         )}
+
+            {/* ── Activity tab ──────────────────────────────────────────────── */}
+            {activeTab === "activity" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {data.promptLog.length === 0 ? (
+                  <div style={{ color: t.textMuted, fontSize: "0.75rem", textAlign: "center", padding: "3rem" }}>No activity yet.</div>
+                ) : data.promptLog.map((entry, i) => {
+                  const searches = entry.agent_steps?.filter(s => s.tool === "search_web") ?? [];
+                  const scrapes = entry.agent_steps?.filter(s => s.tool === "fetch_url") ?? [];
+                  return (
+                    <div key={i} style={{ border: `1px solid ${t.border}`, borderRadius: "4px", overflow: "hidden" }}>
+                      {/* Header row */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.6rem 0.75rem", background: t.bgCard }}>
+                        <span style={{ fontSize: "0.6rem", color: AGENT_COLORS[entry.agent_id] || t.textMuted, fontFamily: "DM Mono, monospace", textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0 }}>
+                          {AGENT_LABELS[entry.agent_id] || entry.agent_id || "agent"}
+                        </span>
+                        <span style={{ fontSize: "0.7rem", color: t.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.query}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+                          {searches.length > 0 && <span style={{ fontSize: "0.55rem", color: t.textMuted, fontFamily: "DM Mono, monospace" }}>{searches.length} search{searches.length !== 1 ? "es" : ""}</span>}
+                          {scrapes.length > 0 && <span style={{ fontSize: "0.55rem", color: t.textMuted, fontFamily: "DM Mono, monospace" }}>{scrapes.length} scrape{scrapes.length !== 1 ? "s" : ""}</span>}
+                          {entry.sources_used?.length > 0 && <span style={{ fontSize: "0.55rem", color: t.gold, fontFamily: "DM Mono, monospace" }}>{entry.sources_used.length} src</span>}
+                          {entry.reflection_score !== undefined && (
+                            <span style={{
+                              fontSize: "0.5rem", padding: "0.05rem 0.3rem", borderRadius: "2px", fontFamily: "DM Mono, monospace",
+                              background: entry.reflection_score >= 8 ? "rgba(100,180,100,0.1)" : entry.reflection_score >= 6 ? "rgba(200,169,110,0.1)" : "rgba(200,100,100,0.1)",
+                              color: entry.reflection_score >= 8 ? "#7ec87e" : entry.reflection_score >= 6 ? t.gold : "#c87e7e",
+                            }}>{entry.reflection_score}/10</span>
+                          )}
+                          <span style={{ fontSize: "0.52rem", color: t.textVeryFaint, fontFamily: "DM Mono, monospace" }}>
+                            {new Date(entry.created_at).toLocaleDateString("en-AU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Search steps */}
+                      {searches.length > 0 && (
+                        <div style={{ borderTop: `1px solid ${t.border}`, padding: "0.5rem 0.75rem", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                          {searches.map((s, j) => (
+                            <div key={j} style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+                              <span style={{ fontSize: "0.52rem", color: t.gold, fontFamily: "DM Mono, monospace", textTransform: "uppercase", flexShrink: 0 }}>search</span>
+                              <span style={{ fontSize: "0.65rem", color: t.text }}>{s.input}</span>
+                            </div>
+                          ))}
+                          {scrapes.map((s, j) => (
+                            <div key={`sc${j}`} style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+                              <span style={{ fontSize: "0.52rem", color: t.textMuted, fontFamily: "DM Mono, monospace", textTransform: "uppercase", flexShrink: 0 }}>scrape</span>
+                              <span style={{ fontSize: "0.6rem", color: t.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.input}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Sources */}
+                      {entry.sources_used?.length > 0 && (
+                        <div style={{ borderTop: `1px solid ${t.border}`, padding: "0.5rem 0.75rem", display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                          {entry.sources_used.map((s, j) => (
+                            <a key={j} href={s.url} target="_blank" rel="noopener noreferrer"
+                              style={{ fontSize: "0.58rem", color: t.textMuted, textDecoration: "none", border: `1px solid ${t.border}`, borderRadius: "2px", padding: "0.15rem 0.4rem", background: t.bg }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = t.text; (e.currentTarget as HTMLElement).style.borderColor = t.textFaint; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = t.textMuted; (e.currentTarget as HTMLElement).style.borderColor = t.border; }}>
+                              {s.title || s.url}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
       </main>
     </div>
   );
