@@ -284,6 +284,20 @@ Be specific — extract actual values, prices, specs, names. Max 3 sentences. If
       toolInput = decision.url;
       toolResult = await fetchUrl(decision.url, send, agentId, sessionId);
       toolCounts.fetch_url++;
+
+      // Auto-save to knowledge base (fire-and-forget — never blocks the agent)
+      if (
+        toolResult &&
+        toolResult.length > 200 &&
+        !toolResult.startsWith("Fetch failed") &&
+        !toolResult.startsWith("Could not extract")
+      ) {
+        const pageTitle = discoveredSources.get(decision.url) || "";
+        import("@/lib/autoIngest")
+          .then(({ autoIngestUrl }) => autoIngestUrl(decision.url, toolResult, pageTitle, agentId))
+          .catch(() => {});
+        send({ type: "status", text: `💾 Saving to knowledge base…` });
+      }
     }
 
     agentSteps.push({
