@@ -41,6 +41,7 @@ interface SearchStats {
   usageByAgent: { agent_id: string; count: number }[];
   usageByProvider: { provider: string; count: number }[];
   activeProvider: string;
+  tavilyLimit: number;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -640,8 +641,8 @@ export default function Dashboard() {
                     <Card t={t} title="Usage by provider — this month" span={2}>
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                         {ss.usageByProvider.map(p => {
-                          const total = ss.usageByProvider.reduce((s, x) => s + x.count, 0);
-                          const pct = total > 0 ? (p.count / total) * 100 : 0;
+                          const quota = p.provider === "serper" ? 2500 : ss.tavilyLimit;
+                          const pct = quota > 0 ? (p.count / quota) * 100 : 0;
                           return (
                             <div key={p.provider}>
                               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.2rem" }}>

@@ -128,6 +128,7 @@ export interface SearchStats {
   usageByAgent: { agent_id: string; count: number }[];
   usageByProvider: { provider: string; count: number }[];
   activeProvider: SearchProvider;
+  tavilyLimit: number;
 }
 
 export async function getSearchStats(): Promise<SearchStats> {
@@ -137,7 +138,7 @@ export async function getSearchStats(): Promise<SearchStats> {
   const limit = activeProvider === "serper" ? 2500 : tavilyLimit;
 
   if (!SUPABASE_URL || !SUPABASE_KEY) {
-    return { searches: 0, scrapes: 0, total: 0, limit, remaining: limit, pct: 0, usageByDay: [], usageByAgent: [], usageByProvider: [], activeProvider };
+    return { searches: 0, scrapes: 0, total: 0, limit, remaining: limit, pct: 0, usageByDay: [], usageByAgent: [], usageByProvider: [], activeProvider, tavilyLimit };
   }
 
   try {
@@ -179,10 +180,10 @@ export async function getSearchStats(): Promise<SearchStats> {
       searches, scrapes, total: activeTotal, limit,
       remaining: Math.max(0, limit - activeTotal),
       pct: Math.min((activeTotal / limit) * 100, 100),
-      usageByDay, usageByAgent, usageByProvider, activeProvider,
+      usageByDay, usageByAgent, usageByProvider, activeProvider, tavilyLimit,
     };
   } catch {
-    return { searches: 0, scrapes: 0, total: 0, limit, remaining: limit, pct: 0, usageByDay: [], usageByAgent: [], usageByProvider: [], activeProvider };
+    return { searches: 0, scrapes: 0, total: 0, limit, remaining: limit, pct: 0, usageByDay: [], usageByAgent: [], usageByProvider: [], activeProvider, tavilyLimit };
   }
 }
 
