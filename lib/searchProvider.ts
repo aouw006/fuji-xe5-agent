@@ -133,7 +133,8 @@ export interface SearchStats {
 export async function getSearchStats(): Promise<SearchStats> {
   const now = new Date();
   const firstOfMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01T00:00:00Z`;
-  const [activeProvider, limit] = await Promise.all([getActiveProvider(), getTavilyLimit()]);
+  const [activeProvider, tavilyLimit] = await Promise.all([getActiveProvider(), getTavilyLimit()]);
+  const limit = activeProvider === "serper" ? 2500 : tavilyLimit;
 
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     return { searches: 0, scrapes: 0, total: 0, limit, remaining: limit, pct: 0, usageByDay: [], usageByAgent: [], usageByProvider: [], activeProvider };
