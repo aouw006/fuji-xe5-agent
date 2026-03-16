@@ -39,6 +39,7 @@ interface SearchStats {
   pct: number;
   usageByDay: { date: string; count: number }[];
   usageByAgent: { agent_id: string; count: number }[];
+  usageByProvider: { provider: string; count: number }[];
   activeProvider: string;
 }
 
