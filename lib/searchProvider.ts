@@ -7,7 +7,7 @@
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
 
-export type SearchProvider = "tavily" | "none";
+export type SearchProvider = "tavily" | "serper" | "none";
 
 export interface ProviderSearchResult {
   title: string;
@@ -91,7 +91,8 @@ export async function logSearchUsage(
   resultsReturned: number,
   agentId?: string,
   sessionId?: string,
-  isScrape = false
+  isScrape = false,
+  provider?: string
 ): Promise<void> {
   if (!SUPABASE_URL || !SUPABASE_KEY) return;
   try {
@@ -104,7 +105,7 @@ export async function logSearchUsage(
         Prefer: "return=minimal",
       },
       body: JSON.stringify({
-        provider: "tavily",
+        provider: provider || "tavily",
         results_returned: resultsReturned,
         agent_id: agentId || null,
         session_id: sessionId || null,
@@ -190,13 +191,22 @@ export async function providerSearch(
 ): Promise<ProviderSearchResult[]> {
   const provider = await getActiveProvider();
   if (provider === "none") return [];
-  const { tavilySearch } = await import("@/lib/search");
-  const results = await tavilySearch(query, {
-    maxResults: options.maxResults,
-    includeDomains: options.includeDomains,
-    excludeDomains: options.excludeDomains,
-  });
-  logSearchUsage(results.length, options.agentId, options.sessionId, false);
+
+  let results: ProviderSearchResult[] = [];
+
+  if (provider === "serper") {
+    const { serperSearch } = await import("@/lib/search");
+    results = await serperSearch(query, { maxResults: options.maxResults });
+  } else {
+    const { tavilySearch } = await import("@/lib/search");
+    results = await tavilySearch(query, {
+      maxResults: options.maxResults,
+      includeDomains: options.includeDomains,
+      excludeDomains: options.excludeDomains,
+    });
+  }
+
+  logSearchUsage(results.length, options.agentId, options.sessionId, false, provider);
   return results;
 }
 

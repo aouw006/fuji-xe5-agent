@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const valid: SearchProvider[] = ["tavily", "none"];
+    const valid: SearchProvider[] = ["tavily", "serper", "none"];
 
     if (body.provider !== undefined) {
       if (!valid.includes(body.provider)) {

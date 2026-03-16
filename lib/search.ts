@@ -149,6 +149,37 @@ export async function tavilySearch(
   return data.results || [];
 }
 
+// ─── Serper Search ────────────────────────────────────────────────────────────
+
+export async function serperSearch(
+  query: string,
+  options: { maxResults?: number } = {}
+): Promise<SearchResult[]> {
+  const { maxResults = 6 } = options;
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey) return [];
+
+  const res = await fetch("https://google.serper.dev/search", {
+    method: "POST",
+    headers: {
+      "X-API-KEY": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ q: query, num: maxResults }),
+  });
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  const organic: { title: string; link: string; snippet: string }[] = data.organic || [];
+
+  return organic.slice(0, maxResults).map(r => ({
+    title: r.title,
+    url: r.link,
+    content: r.snippet,
+  }));
+}
+
 // ─── Full Article Scraper ─────────────────────────────────────────────────────
 
 export async function scrapeArticle(url: string): Promise<string> {

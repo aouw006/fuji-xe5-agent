@@ -38,7 +38,7 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
   const [error, setError] = useState("");
 
   // Search provider state
-  const [provider, setProvider] = useState<"tavily" | "none">("tavily");
+  const [provider, setProvider] = useState<"tavily" | "serper" | "none">("tavily");
   const [tavilyLimit, setTavilyLimit] = useState("1000");
   const [savingProvider, setSavingProvider] = useState(false);
   const [providerSaved, setProviderSaved] = useState(false);
@@ -245,17 +245,21 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
 
               {/* Provider buttons */}
               <div style={{ display: "flex", gap: "0.4rem", marginBottom: "1rem" }}>
-                {(["tavily", "none"] as const).map(p => (
-                  <button key={p} onClick={() => setProvider(p)}
+                {([
+                  { id: "tavily", label: "Tavily" },
+                  { id: "serper", label: "Serper" },
+                  { id: "none", label: "None" },
+                ] as const).map(p => (
+                  <button key={p.id} onClick={() => setProvider(p.id)}
                     style={{
                       flex: 1, padding: "0.45rem 0.5rem", borderRadius: "3px", cursor: "pointer",
                       fontSize: "0.65rem", fontFamily: "'DM Mono', monospace", letterSpacing: "0.06em",
                       textTransform: "uppercase", transition: "all 0.15s",
-                      background: provider === p ? (isDark ? "rgba(200,169,110,0.15)" : "rgba(176,136,64,0.18)") : t.bgCard,
-                      border: `1px solid ${provider === p ? t.gold : t.borderCard}`,
-                      color: provider === p ? t.gold : t.textMuted,
+                      background: provider === p.id ? (isDark ? "rgba(200,169,110,0.15)" : "rgba(176,136,64,0.18)") : t.bgCard,
+                      border: `1px solid ${provider === p.id ? t.gold : t.borderCard}`,
+                      color: provider === p.id ? t.gold : t.textMuted,
                     }}>
-                    {p === "tavily" ? "Tavily" : "None (KB only)"}
+                    {p.label}
                   </button>
                 ))}
               </div>
@@ -263,6 +267,7 @@ export default function SettingsModal({ open, onClose, isDark, fontSize, onFontS
               {/* Provider description */}
               <div style={{ fontSize: "0.62rem", color: t.textVeryFaint, lineHeight: 1.6, marginBottom: "1rem" }}>
                 {provider === "tavily" && "Tavily active — live web search enabled. 1,000 searches/month on the free plan."}
+                {provider === "serper" && "Serper active — uses Google search results. Add SERPER_API_KEY to your environment. $50 for 50k queries."}
                 {provider === "none" && "Live search disabled. Answers come from the knowledge base only. No credits used."}
               </div>
 
