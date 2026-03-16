@@ -174,10 +174,11 @@ export async function getSearchStats(): Promise<SearchStats> {
       .map(([provider, count]) => ({ provider, count }))
       .sort((a, b) => b.count - a.count);
 
+    const activeTotal = providerMap[activeProvider] ?? total;
     return {
-      searches, scrapes, total, limit,
-      remaining: Math.max(0, limit - total),
-      pct: Math.min((total / limit) * 100, 100),
+      searches, scrapes, total: activeTotal, limit,
+      remaining: Math.max(0, limit - activeTotal),
+      pct: Math.min((activeTotal / limit) * 100, 100),
       usageByDay, usageByAgent, usageByProvider, activeProvider,
     };
   } catch {
