@@ -366,28 +366,7 @@ export default function LibraryPage() {
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = t.borderCard; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
                     >
                       {/* Thumbnail */}
-                      <div style={{ width: "100%", aspectRatio: "3/4", background: t.bgInput, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
-                        {/* Cache button */}
-                        <button
-                          title={isCached ? "Remove from local cache" : "Save locally for offline access"}
-                          onClick={e => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            isCached ? uncacheFile(file) : cacheFile(file);
-                          }}
-                          style={{
-                            position: "absolute", top: "0.4rem", right: "0.4rem", zIndex: 2,
-                            width: "1.6rem", height: "1.6rem", borderRadius: "50%",
-                            border: `1px solid ${isCached ? t.gold : "rgba(255,255,255,0.3)"}`,
-                            background: isCached ? t.gold + "22" : "rgba(0,0,0,0.35)",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            cursor: "pointer", backdropFilter: "blur(4px)",
-                            color: isCached ? t.gold : "rgba(255,255,255,0.7)",
-                            fontSize: "0.65rem", transition: "all 0.15s",
-                          }}
-                        >
-                          {isDownloading ? "⟳" : isCached ? "✓" : "↓"}
-                        </button>
+                      <div style={{ width: "100%", aspectRatio: "3/4", background: t.bgInput, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                         {thumb && !thumbFailed ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -431,10 +410,27 @@ export default function LibraryPage() {
                         }} title={displayName}>
                           {displayName}
                         </div>
-                        {/* Size + cache status */}
+                        {/* Size + download button */}
                         <div style={{ fontSize: "0.52rem", color: t.textFaint, marginTop: "0.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <span>{formatSize(file.size)}</span>
-                          {isCached && <span style={{ color: t.gold, fontSize: "0.5rem" }}>● local</span>}
+                          <button
+                            title={isCached ? "Remove from local cache" : "Save locally for fast offline open"}
+                            onClick={e => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              isCached ? uncacheFile(file) : cacheFile(file);
+                            }}
+                            style={{
+                              background: "none", border: "none", cursor: "pointer", padding: "0 2px",
+                              color: isCached ? t.gold : t.textFaint,
+                              fontSize: "0.75rem", lineHeight: 1, transition: "color 0.15s",
+                              fontWeight: isCached ? 700 : 400,
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.color = t.gold)}
+                            onMouseLeave={e => (e.currentTarget.style.color = isCached ? t.gold : t.textFaint)}
+                          >
+                            {isDownloading ? "⟳" : isCached ? "✓" : "↓"}
+                          </button>
                         </div>
                       </div>
                     </div>
