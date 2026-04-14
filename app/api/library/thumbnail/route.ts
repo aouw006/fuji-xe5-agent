@@ -45,13 +45,18 @@ async function getToken(): Promise<string | null> {
 
 export async function GET(req: NextRequest) {
   const src = req.nextUrl.searchParams.get("src");
-  if (!src) return new NextResponse(null, { status: 400 });
+  const driveId = req.nextUrl.searchParams.get("driveId");
+  if (!src && !driveId) return new NextResponse(null, { status: 400 });
 
   const token = await getToken();
   if (!token) return new NextResponse(null, { status: 503 });
 
   try {
-    const imgRes = await fetch(decodeURIComponent(src), {
+    const fetchUrl = driveId
+      ? `https://www.googleapis.com/drive/v3/files/${driveId}?alt=media`
+      : decodeURIComponent(src!);
+
+    const imgRes = await fetch(fetchUrl, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!imgRes.ok) return new NextResponse(null, { status: 404 });
@@ -60,7 +65,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": imgRes.headers.get("content-type") || "image/jpeg",
-        "Cache-Control": "public, max-age=86400", // browser caches for 24h
+        "Cache-Control": "public, max-age=86400",
       },
     });
   } catch {

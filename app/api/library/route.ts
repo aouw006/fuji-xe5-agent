@@ -62,6 +62,38 @@ export async function GET() {
     const data = await res.json();
     if (!res.ok) return NextResponse.json({ error: data.error?.message || "Drive API error" }, { status: 500 });
 
+    // Look for a "thumbnails" subfolder inside the library folder
+    const folderParams = new URLSearchParams({
+      q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and name='thumbnails' and trashed=false`,
+      fields: "files(id)",
+      pageSize: "1",
+    });
+    const folderRes = await fetch(`https://www.googleapis.com/drive/v3/files?${folderParams}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const folderData = await folderRes.json();
+    const thumbFolderId = folderData.files?.[0]?.id ?? null;
+
+    // Build a map of jpg basename (without extension) -> Drive file ID
+    // e.g. "FujiLove-Magazine-2024-03.jpg" matches "FujiLove-Magazine-2024-03.pdf"
+    const driveThumbMap: Record<string, string> = {};
+    if (thumbFolderId) {
+      const thumbParams = new URLSearchParams({
+        q: `'${thumbFolderId}' in parents and mimeType contains 'image/' and trashed=false`,
+        fields: "files(id,name)",
+        pageSize: "500",
+      });
+      const thumbRes = await fetch(`https://www.googleapis.com/drive/v3/files?${thumbParams}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const thumbData = await thumbRes.json();
+      for (const tf of (thumbData.files || [])) {
+        // Strip extension to get base name for matching
+        const base = tf.name.replace(/\.[^.]+$/, "");
+        driveThumbMap[base] = tf.id;
+      }
+    }
+
     const files = (data.files || []).map((f: {
       id: string;
       name: string;
@@ -69,15 +101,20 @@ export async function GET() {
       modifiedTime?: string;
       webViewLink?: string;
       thumbnailLink?: string;
-    }) => ({
-      id: f.id,
-      name: f.name,
-      size: f.size ? parseInt(f.size) : null,
-      modifiedTime: f.modifiedTime || null,
-      webViewLink: f.webViewLink || `https://drive.google.com/file/d/${f.id}/view`,
-      // Bump thumbnail resolution from default s220 to s400
-      thumbnailLink: f.thumbnailLink ? f.thumbnailLink.replace(/=s\d+$/, "=s400") : null,
-    }));
+    }) => {
+      const pdfBase = f.name.replace(/\.pdf$/i, "");
+      const driveThumbId = driveThumbMap[pdfBase] ?? null;
+      return {
+        id: f.id,
+        name: f.name,
+        size: f.size ? parseInt(f.size) : null,
+        modifiedTime: f.modifiedTime || null,
+        webViewLink: f.webViewLink || `https://drive.google.com/file/d/${f.id}/view`,
+        // Bump thumbnail resolution from default s220 to s400
+        thumbnailLink: f.thumbnailLink ? f.thumbnailLink.replace(/=s\d+$/, "=s400") : null,
+        driveThumbId,
+      };
+    });
 
     return NextResponse.json({ files, total: files.length });
   } catch (e) {
