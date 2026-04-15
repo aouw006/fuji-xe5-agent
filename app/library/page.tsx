@@ -73,6 +73,7 @@ export default function LibraryPage() {
   const [failedLocalThumbs, setFailedLocalThumbs] = useState<Set<string>>(new Set());
   const [cachedFiles, setCachedFiles] = useState<Set<string>>(new Set());
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
+  const [showHelp, setShowHelp] = useState(false);
 
   const CACHE_NAME = "fuji-library-pdfs";
 
@@ -224,9 +225,32 @@ export default function LibraryPage() {
           {!loading && !error && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.35rem", flexWrap: "wrap" }}>
               <span style={{ fontSize: "0.7rem", color: t.textMuted }}>{files.length} magazines</span>
-              <span style={{ fontSize: "0.6rem", color: t.textMuted, fontStyle: "italic" }}>
-                💡 To add a thumbnail for a new PDF, drop a JPG named <code style={{ fontFamily: "monospace", color: t.gold }}>filename.jpg</code> into the <code style={{ fontFamily: "monospace", color: t.gold }}>thumbnails/</code> folder in Google Drive
-              </span>
+              <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                <button
+                  onClick={() => setShowHelp(h => !h)}
+                  style={{
+                    background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted,
+                    width: "20px", height: "20px", borderRadius: "50%", cursor: "pointer",
+                    fontSize: "0.65rem", fontWeight: 700, lineHeight: 1, display: "flex",
+                    alignItems: "center", justifyContent: "center",
+                  }}
+                  title="How to add thumbnails"
+                >?</button>
+                {showHelp && (
+                  <div style={{
+                    position: "absolute", top: "26px", left: 0, zIndex: 10,
+                    background: t.bgCard, border: `1px solid ${t.border}`, borderRadius: "4px",
+                    padding: "0.75rem 1rem", width: "280px", fontSize: "0.68rem",
+                    color: t.textMuted, lineHeight: 1.6, boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+                  }}>
+                    💡 To add a thumbnail for a new PDF, drop a JPG named{" "}
+                    <code style={{ fontFamily: "monospace", color: t.gold }}>filename.jpg</code>{" "}
+                    into the{" "}
+                    <code style={{ fontFamily: "monospace", color: t.gold }}>thumbnails/</code>{" "}
+                    folder in Google Drive. The name must match the PDF exactly (without the .pdf extension).
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
