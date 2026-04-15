@@ -71,28 +71,12 @@ export default function LibraryPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [failedThumbs, setFailedThumbs] = useState<Set<string>>(new Set());
   const [failedLocalThumbs, setFailedLocalThumbs] = useState<Set<string>>(new Set());
-  const [warming, setWarming] = useState(false);
-  const [warmupMsg, setWarmupMsg] = useState<string | null>(null);
   const [cachedFiles, setCachedFiles] = useState<Set<string>>(new Set());
   const [downloadingFiles, setDownloadingFiles] = useState<Set<string>>(new Set());
 
   const CACHE_NAME = "fuji-library-pdfs";
 
   const t = isDark ? darkTheme : lightTheme;
-
-  async function runWarmup() {
-    setWarming(true);
-    setWarmupMsg(null);
-    try {
-      const res = await fetch("/api/library/warmup", { method: "POST" });
-      const data = await res.json();
-      setWarmupMsg(data.message || data.error || "Done");
-    } catch {
-      setWarmupMsg("Failed to run warmup");
-    } finally {
-      setWarming(false);
-    }
-  }
 
   useEffect(() => {
     const saved = localStorage.getItem("xe5_theme");
@@ -215,7 +199,7 @@ export default function LibraryPage() {
     return result;
   }, [files, search, activeCategory, sortBy, sortDir]);
 
-  // 1. Try local static file in public/thumbnails/ (only if file exists)
+  // 1. Try local static file in public/thumbnails/
   // 2. Try Drive thumbnails folder (JPG with same name as PDF)
   // 3. Fall back to Drive's auto-thumbnail
   // 4. Fall back to PDF icon
@@ -240,18 +224,9 @@ export default function LibraryPage() {
           {!loading && !error && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.35rem", flexWrap: "wrap" }}>
               <span style={{ fontSize: "0.7rem", color: t.textMuted }}>{files.length} magazines</span>
-              <button
-                onClick={runWarmup}
-                disabled={warming}
-                title="For large PDFs that have never been opened in Drive, this triggers Drive to generate their thumbnails in the background. Reload the page after a minute."
-                style={{
-                  background: "transparent", border: `1px solid ${t.border}`, color: t.textMuted,
-                  padding: "0.2rem 0.55rem", borderRadius: "2px", cursor: warming ? "default" : "pointer",
-                  fontSize: "0.55rem", letterSpacing: "0.08em", opacity: warming ? 0.5 : 1,
-                }}>
-                {warming ? "Generating…" : "Generate thumbnails"}
-              </button>
-              {warmupMsg && <span style={{ fontSize: "0.6rem", color: t.textMuted, fontStyle: "italic" }}>{warmupMsg}</span>}
+              <span style={{ fontSize: "0.6rem", color: t.textMuted, fontStyle: "italic" }}>
+                💡 To add a thumbnail for a new PDF, drop a JPG named <code style={{ fontFamily: "monospace", color: t.gold }}>filename.jpg</code> into the <code style={{ fontFamily: "monospace", color: t.gold }}>thumbnails/</code> folder in Google Drive
+              </span>
             </div>
           )}
         </div>
@@ -375,13 +350,13 @@ export default function LibraryPage() {
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                             onError={() => {
                               if (!failedLocalThumbs.has(file.id)) {
-                                // local static failed → try Drive thumbnails folder next
+                                // local static failed → try Drive thumbnails folder
                                 setFailedLocalThumbs(prev => new Set(Array.from(prev).concat(file.id)));
                               } else if (file.driveThumbId && !failedThumbs.has(`drive_${file.id}`)) {
                                 // Drive thumbnails folder failed → try Drive auto-thumbnail
                                 setFailedThumbs(prev => new Set(Array.from(prev).concat(`drive_${file.id}`)));
                               } else {
-                                // Auto-thumbnail failed → show PDF icon
+                                // All failed → show PDF icon
                                 setFailedThumbs(prev => new Set(Array.from(prev).concat(`auto_${file.id}`)));
                               }
                             }}
