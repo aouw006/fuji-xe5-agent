@@ -215,13 +215,13 @@ export default function LibraryPage() {
     return result;
   }, [files, search, activeCategory, sortBy, sortDir]);
 
-  // 1. Try local static file in public/thumbnails/
+  // 1. Try local static file in public/thumbnails/ (only if file exists)
   // 2. Try Drive thumbnails folder (JPG with same name as PDF)
   // 3. Fall back to Drive's auto-thumbnail
   // 4. Fall back to PDF icon
   function thumbSrc(file: DriveFile): string | null {
     if (!failedLocalThumbs.has(file.id)) return `/thumbnails/${file.id}.jpg`;
-    if (file.driveThumbId && !failedThumbs.has(file.id))
+    if (file.driveThumbId && !failedThumbs.has(`drive_${file.id}`))
       return `/api/library/thumbnail?driveId=${file.driveThumbId}`;
     if (file.thumbnailLink && !failedThumbs.has(`auto_${file.id}`))
       return `/api/library/thumbnail?src=${encodeURIComponent(file.thumbnailLink)}`;
@@ -375,13 +375,13 @@ export default function LibraryPage() {
                             style={{ width: "100%", height: "100%", objectFit: "cover" }}
                             onError={() => {
                               if (!failedLocalThumbs.has(file.id)) {
-                                // local static failed → try Drive thumbnails folder
+                                // local static failed → try Drive thumbnails folder next
                                 setFailedLocalThumbs(prev => new Set(Array.from(prev).concat(file.id)));
-                              } else if (file.driveThumbId && !failedThumbs.has(file.id)) {
+                              } else if (file.driveThumbId && !failedThumbs.has(`drive_${file.id}`)) {
                                 // Drive thumbnails folder failed → try Drive auto-thumbnail
-                                setFailedThumbs(prev => new Set(Array.from(prev).concat(file.id)));
+                                setFailedThumbs(prev => new Set(Array.from(prev).concat(`drive_${file.id}`)));
                               } else {
-                                // All failed → show PDF icon
+                                // Auto-thumbnail failed → show PDF icon
                                 setFailedThumbs(prev => new Set(Array.from(prev).concat(`auto_${file.id}`)));
                               }
                             }}
